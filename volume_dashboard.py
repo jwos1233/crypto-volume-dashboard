@@ -20,7 +20,10 @@ load_dotenv()
 nest_asyncio.apply()
 
 # Try to get API key from different sources
-API_KEY = st.secrets.get("COINGECKO_API_KEY") or os.getenv('COINGECKO_API_KEY')
+try:
+    API_KEY = st.secrets["COINGECKO_API_KEY"]
+except:
+    API_KEY = os.getenv('COINGECKO_API_KEY')
 
 if not API_KEY:
     st.error("No API key found. Please set the COINGECKO_API_KEY in your environment or Streamlit secrets.")
