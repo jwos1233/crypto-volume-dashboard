@@ -10,10 +10,15 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 nest_asyncio.apply()
 
-API_KEY = "CG-CD33ohgugtpwgHfLHhEDT3yD"
+API_KEY = os.getenv('COINGECKO_API_KEY')
 HEADERS = {"x-cg-pro-api-key": API_KEY}
 MIN_MARKET_CAP = 300_000_000  # $300M
 IGNORE_SYMBOLS = {"XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
