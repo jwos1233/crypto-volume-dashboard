@@ -191,7 +191,19 @@ async def run_analysis():
 
 def main():
     st.set_page_config(page_title="Crypto Volume Analysis", layout="wide")
+    
+    # Title and Description
     st.title("Crypto Volume Analysis Dashboard")
+    st.markdown("""
+    This dashboard analyzes cryptocurrency trading volumes to identify unusual patterns and potential opportunities.
+    
+    ### Features:
+    - **Volume Spikes**: Identifies tokens with unusual trading volume (Z-score analysis)
+    - **Liquidity**: Shows tokens with highest volume relative to market cap
+    - **Volume Acceleration**: Tracks tokens with increasing trading activity
+    
+    Data refreshes every 5 minutes. Use the sidebar to adjust filters and refresh data manually.
+    """)
     
     # Add filters
     st.sidebar.header("Filters")
