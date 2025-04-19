@@ -19,7 +19,13 @@ load_dotenv()
 
 nest_asyncio.apply()
 
-API_KEY = os.getenv('COINGECKO_API_KEY')
+# Try to get API key from different sources
+API_KEY = st.secrets.get("COINGECKO_API_KEY") or os.getenv('COINGECKO_API_KEY')
+
+if not API_KEY:
+    st.error("No API key found. Please set the COINGECKO_API_KEY in your environment or Streamlit secrets.")
+    st.stop()
+
 HEADERS = {"x-cg-pro-api-key": API_KEY}
 MIN_MARKET_CAP = 300_000_000  # $300M
 IGNORE_SYMBOLS = {"XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
