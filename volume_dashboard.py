@@ -12,6 +12,7 @@ import time
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+import contextlib
 
 # Load environment variables
 load_dotenv()
@@ -24,10 +25,11 @@ MIN_MARKET_CAP = 300_000_000  # $300M
 IGNORE_SYMBOLS = {"XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
+TIMEOUT = aiohttp.ClientTimeout(total=30)  # 30 seconds timeout
 
 @st.cache_resource
 def get_session():
-    return aiohttp.ClientSession()
+    return aiohttp.ClientSession(timeout=TIMEOUT)
 
 async def fetch_tokens(_session):
     tokens = []
@@ -155,25 +157,25 @@ def process_volume_stats(_tokens, volume_data):
 
 async def run_analysis():
     try:
-        session = get_session()
-        tokens = await fetch_tokens(session)
-        if not tokens:
-            st.error("No tokens found. Please check your API key and try again.")
-            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        async with aiohttp.ClientSession(timeout=TIMEOUT) as session:
+            tokens = await fetch_tokens(session)
+            if not tokens:
+                st.error("No tokens found. Please check your API key and try again.")
+                return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+                
+            st.info(f"Found {len(tokens)} tokens. Computing volume statistics...")
             
-        st.info(f"Found {len(tokens)} tokens. Computing volume statistics...")
-        
-        # Prepare tasks for volume history
-        tasks = []
-        for token in tokens:
-            tasks.append((token["id"], token["symbol"], token["market_cap"], fetch_volume_history(session, token["id"])))
+            # Prepare tasks for volume history
+            tasks = []
+            for token in tokens:
+                tasks.append((token["id"], token["symbol"], token["market_cap"], fetch_volume_history(session, token["id"])))
 
-        # Gather all volume histories
-        volume_data = await tqdm_asyncio.gather(*(t[3] for t in tasks))
-        
-        # Process the results
-        zscore_df, liquidity_df, accel_df = process_volume_stats(tasks, volume_data)
-        return zscore_df, liquidity_df, accel_df
+            # Gather all volume histories
+            volume_data = await tqdm_asyncio.gather(*(t[3] for t in tasks))
+            
+            # Process the results
+            zscore_df, liquidity_df, accel_df = process_volume_stats(tasks, volume_data)
+            return zscore_df, liquidity_df, accel_df
     except Exception as e:
         st.error(f"Error running analysis: {str(e)}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -201,7 +203,10 @@ def main():
     
     # Run analysis
     with st.spinner("Fetching and analyzing data..."):
-        zscore_df, liquidity_df, accel_df = asyncio.run(run_analysis())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        zscore_df, liquidity_df, accel_df = loop.run_until_complete(run_analysis())
+        loop.close()
     
     if len(zscore_df) == 0:
         st.error("No data available. Please try again later or check your API key.")
