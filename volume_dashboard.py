@@ -341,6 +341,16 @@ def main():
     zscore_df = zscore_df[zscore_df["market_cap"] >= min_market_cap * 1e6]
     zscore_df = zscore_df[zscore_df["current_volume"] >= min_volume * 1e6]
     
+    # Apply same filters to other dataframes
+    liquidity_df = liquidity_df[liquidity_df["market_cap"] >= min_market_cap * 1e6]
+    liquidity_df = liquidity_df[liquidity_df["current_volume"] >= min_volume * 1e6]
+    
+    accel_df = accel_df[accel_df["market_cap"] >= min_market_cap * 1e6]
+    accel_df = accel_df[accel_df["current_volume"] >= min_volume * 1e6]
+    
+    vol_df = vol_df[vol_df["market_cap"] >= min_market_cap * 1e6]
+    vol_df = vol_df[vol_df["current_volume"] >= min_volume * 1e6]
+    
     # Apply volatility filter
     vol_df = vol_df.sort_values(by="volatility_7d", ascending=False)
     
