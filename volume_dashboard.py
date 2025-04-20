@@ -31,7 +31,7 @@ if not API_KEY:
 
 HEADERS = {"x-cg-pro-api-key": API_KEY}
 MIN_MARKET_CAP = 300_000_000  # $300M
-IGNORE_SYMBOLS = {"XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
+IGNORE_SYMBOLS = {"EETH""XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
 TIMEOUT = aiohttp.ClientTimeout(total=30)  # 30 seconds timeout
@@ -118,6 +118,15 @@ async def fetch_volume_history(_session, token_id):
             return None
     return None
 
+def format_currency(value):
+    """Format large numbers into millions (M) or billions (B)"""
+    if value >= 1e9:
+        return f"${value/1e9:.2f}B"
+    elif value >= 1e6:
+        return f"${value/1e6:.2f}M"
+    else:
+        return f"${value:,.2f}"
+
 @st.cache_data(ttl=300)
 def process_volume_stats(_tokens, volume_data):
     results = []
@@ -144,12 +153,15 @@ def process_volume_stats(_tokens, volume_data):
                 "symbol": symbol,
                 "zscore_volume": round(z, 2),
                 "percentile_volume": round(pctl, 2),
-                "dod_change_pct": round(dod_change, 2),
+                "dod_change_pct": f"{round(dod_change, 2)}%",
                 "volume_acceleration": round(volume_accel, 2),
-                "current_volume": current_volume,
-                "avg_volume": mu,
-                "market_cap": market_cap,
-                "volume_to_mcap": round(vol_mcap_ratio, 4)
+                "current_volume": current_volume,  # Keep raw value for filtering
+                "current_volume_formatted": format_currency(current_volume),
+                "avg_volume": mu,  # Keep raw value for calculations
+                "avg_volume_formatted": format_currency(mu),
+                "market_cap": market_cap,  # Keep raw value for filtering
+                "market_cap_formatted": format_currency(market_cap),
+                "volume_to_mcap": f"{round(vol_mcap_ratio * 100, 2)}%"
             })
         except Exception as e:
             st.warning(f"Error processing {symbol}: {str(e)}")
@@ -191,19 +203,7 @@ async def run_analysis():
 
 def main():
     st.set_page_config(page_title="Crypto Volume Analysis", layout="wide")
-    
-    # Title and Description
     st.title("Crypto Volume Analysis Dashboard")
-    st.markdown("""
-    This dashboard analyzes cryptocurrency trading volumes to identify unusual patterns and potential opportunities.
-    
-    ### Features:
-    - **Volume Spikes**: Identifies tokens with unusual trading volume (Z-score analysis)
-    - **Liquidity**: Shows tokens with highest volume relative to market cap
-    - **Volume Acceleration**: Tracks tokens with increasing trading activity
-    
-    Data refreshes every 5 minutes. Use the sidebar to adjust filters and refresh data manually.
-    """)
     
     # Add filters
     st.sidebar.header("Filters")
@@ -262,10 +262,16 @@ def main():
                             title="Volume vs Market Cap (Size by |Z-score|, Color by Z-score)")
             st.plotly_chart(fig, use_container_width=True)
             
-            # Display table
-            st.dataframe(zscore_df.head(20)[["symbol", "zscore_volume", "percentile_volume", 
-                                            "dod_change_pct", "current_volume", "market_cap"]],
-                        use_container_width=True)
+            # Display table with formatted values
+            display_cols = ["symbol", "zscore_volume", "percentile_volume", "dod_change_pct", 
+                          "current_volume_formatted", "market_cap_formatted"]
+            st.dataframe(zscore_df.head(20)[display_cols].rename(columns={
+                "zscore_volume": "Z-Score",
+                "percentile_volume": "Percentile",
+                "dod_change_pct": "24h Change",
+                "current_volume_formatted": "Current Volume",
+                "market_cap_formatted": "Market Cap"
+            }), use_container_width=True)
         else:
             st.warning("No tokens found matching the criteria.")
     
@@ -290,9 +296,13 @@ def main():
                             title="Volume vs Market Cap (Size by Volume/Market Cap Ratio)")
             st.plotly_chart(fig, use_container_width=True)
             
-            # Display table
-            st.dataframe(liquidity_df.head(20)[["symbol", "volume_to_mcap", "current_volume", "market_cap"]],
-                        use_container_width=True)
+            # Display table with formatted values
+            display_cols = ["symbol", "volume_to_mcap", "current_volume_formatted", "market_cap_formatted"]
+            st.dataframe(liquidity_df.head(20)[display_cols].rename(columns={
+                "volume_to_mcap": "Volume/MCap",
+                "current_volume_formatted": "Current Volume",
+                "market_cap_formatted": "Market Cap"
+            }), use_container_width=True)
         else:
             st.warning("No tokens found matching the criteria.")
     
@@ -318,9 +328,13 @@ def main():
                             title="Volume vs Market Cap (Size by |Acceleration|, Color by Acceleration)")
             st.plotly_chart(fig, use_container_width=True)
             
-            # Display table
-            st.dataframe(accel_df.head(20)[["symbol", "volume_acceleration", "current_volume", "avg_volume"]],
-                        use_container_width=True)
+            # Display table with formatted values
+            display_cols = ["symbol", "volume_acceleration", "current_volume_formatted", "avg_volume_formatted"]
+            st.dataframe(accel_df.head(20)[display_cols].rename(columns={
+                "volume_acceleration": "Volume Acceleration",
+                "current_volume_formatted": "Current Volume",
+                "avg_volume_formatted": "Average Volume"
+            }), use_container_width=True)
         else:
             st.warning("No tokens found matching the criteria.")
     
