@@ -334,6 +334,11 @@ def main():
     # Volume Spikes Tab
     with tab1:
         st.header("Top Volume Spike Candidates")
+        
+        st.markdown("""
+        This section identifies unusual trading activity using statistical analysis. The Z-score measures how many standard deviations the current volume is from the historical average. A high Z-score (>2) indicates significantly higher than normal trading activity.
+        """)
+        
         st.write("Tokens with unusual volume spikes (Z-score > 2)")
         
         if len(zscore_df) > 0:
@@ -370,6 +375,11 @@ def main():
     # Liquidity Tab
     with tab2:
         st.header("Highest Volume/Market Cap Ratios")
+        
+        st.markdown("""
+        This section identifies tokens with high trading volume relative to their market cap. A high volume/market cap ratio indicates strong liquidity and trading activity. This can be useful for identifying tokens that are actively traded despite their size.
+        """)
+        
         st.write("Tokens with highest volume relative to market cap (shown as percentage)")
         
         if len(liquidity_df) > 0:
@@ -402,6 +412,11 @@ def main():
     # Acceleration Tab
     with tab3:
         st.header("Top Volume Accelerators")
+        
+        st.markdown("""
+        This section tracks emerging trends by comparing current volume to the 7-day average. A high acceleration value indicates rapidly increasing trading activity, which can signal growing interest in a token.
+        """)
+        
         st.write("Tokens with highest volume acceleration (Current Volume / 7-day Average)")
         
         if len(accel_df) > 0:
