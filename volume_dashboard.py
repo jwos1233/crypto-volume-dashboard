@@ -13,17 +13,22 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 import contextlib
+import requests
 
 # Load environment variables
 load_dotenv()
 
 nest_asyncio.apply()
 
-# Try to get API key from different sources
+# Try to get API keys from Streamlit secrets
 try:
     API_KEY = st.secrets["COINGECKO_API_KEY"]
+    TELEGRAM_BOT_TOKEN = st.secrets.get("TELEGRAM_BOT_TOKEN", None)
+    TELEGRAM_CHAT_ID = st.secrets.get("TELEGRAM_CHAT_ID", None)
 except:
     API_KEY = os.getenv('COINGECKO_API_KEY')
+    TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 if not API_KEY:
     st.error("No API key found. Please set the COINGECKO_API_KEY in your environment or Streamlit secrets.")
@@ -35,6 +40,37 @@ IGNORE_SYMBOLS = {"EETH","BUSD","MSOL","XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
 TIMEOUT = aiohttp.ClientTimeout(total=30)  # 30 seconds timeout
+ZSCORE_THRESHOLD = 2.0  # Z-score threshold for alerts
+
+def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_change):
+    """Send a Telegram alert for significant volume spikes"""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        st.warning("Telegram credentials not configured. Please set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in your environment variables.")
+        return
+    
+    message = (
+        f"🚨 Volume Spike Alert!\n\n"
+        f"Token: {symbol}\n"
+        f"Z-Score: {zscore:.2f}\n"
+        f"Current Volume: {format_currency(current_volume)}\n"
+        f"Market Cap: {format_currency(market_cap)}\n"
+        f"24h Change: {volume_change}%\n\n"
+        f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+    
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    params = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+    
+    try:
+        response = requests.get(url, params=params)
+        if response.status_code != 200:
+            st.warning(f"Failed to send Telegram alert: {response.text}")
+    except Exception as e:
+        st.warning(f"Error sending Telegram alert: {str(e)}")
 
 @st.cache_resource
 def get_session():
@@ -148,6 +184,10 @@ def process_volume_stats(_tokens, volume_data):
             dod_change = (current_volume - previous_volume) / previous_volume * 100
             vol_mcap_ratio = current_volume / market_cap * 100  # Convert to percentage
             volume_accel = current_volume / avg_volume_7d if avg_volume_7d != 0 else 0
+
+            # Send Telegram alert for significant volume spikes
+            if z > ZSCORE_THRESHOLD:
+                send_telegram_alert(symbol, z, current_volume, market_cap, dod_change)
 
             results.append({
                 "symbol": symbol,
