@@ -369,8 +369,6 @@ async def run_analysis():
                 st.error("No tokens found. Please check your API key and try again.")
                 return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
                 
-            st.info(f"Found {len(tokens)} tokens. Computing volume statistics...")
-            
             # Prepare tasks for volume history
             tasks = []
             for token in tokens:
