@@ -253,7 +253,6 @@ def main():
     - **Volume Spikes Analysis**: Detect unusual trading activity using statistical analysis
     - **Liquidity Analysis**: Identify tokens with high trading volume relative to market cap
     - **Volume Acceleration**: Track emerging trends through volume momentum
-    - **Real-time Alerts**: Get notified of significant market movements via Telegram
     """)
     
     # Add filters
