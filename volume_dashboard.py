@@ -292,7 +292,6 @@ def main():
     
     # Add volatility filters
     st.sidebar.subheader("Volatility Settings")
-    vol_timeframe = st.sidebar.radio("Volatility Timeframe", ["7d", "30d"], horizontal=True)
     min_volatility = st.sidebar.number_input("Minimum Volatility (%)", 
                                             min_value=0, 
                                             max_value=500, 
@@ -319,9 +318,8 @@ def main():
     zscore_df = zscore_df[zscore_df["current_volume"] >= min_volume * 1e6]
     
     # Apply volatility filter
-    vol_col = "volatility_7d" if vol_timeframe == "7d" else "volatility_30d"
-    vol_df = vol_df[vol_df[vol_col] >= min_volatility]
-    vol_df = vol_df.sort_values(by=vol_col, ascending=False)
+    vol_df = vol_df[vol_df["volatility_7d"] >= min_volatility]
+    vol_df = vol_df.sort_values(by="volatility_7d", ascending=False)
     
     # Create tabs
     tab1, tab2, tab3, tab4 = st.tabs(["Volume Spikes", "Liquidity", "Acceleration", "Volatility"])
@@ -426,12 +424,16 @@ def main():
     
     with tab4:
         st.header("Volatility Analysis")
+        
+        # Add timeframe selection in the tab
+        col1, col2 = st.columns([2, 3])
+        with col1:
+            vol_timeframe = st.radio("Timeframe", ["7d", "30d"], horizontal=True)
+        
         st.markdown("""
-        ### Understanding Volatility
-
         The volatility shown is annualized (converted to a yearly rate) and expressed as a percentage. For example:
         - A 50% volatility means the asset's price could move up or down by 50% over a year
-        - You can switch between 7-day and 30-day calculation windows using the sidebar settings
+        - You can switch between 7-day and 30-day calculation windows using the timeframe selector above
         """)
         
         st.write(f"Realized volatility over {vol_timeframe} timeframe")
@@ -443,9 +445,9 @@ def main():
             # Create scatter plot
             fig = px.scatter(plot_df,
                             x="market_cap",
-                            y=vol_col,
+                            y="volatility_7d" if vol_timeframe == "7d" else "volatility_30d",
                             size="current_volume",
-                            color=vol_col,
+                            color="volatility_7d" if vol_timeframe == "7d" else "volatility_30d",
                             color_continuous_scale="Viridis",
                             hover_name="symbol",
                             log_x=True,
@@ -459,9 +461,9 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
             
             # Display table with formatted values
-            display_cols = ["symbol", vol_col, "current_volume_formatted", "market_cap_formatted"]
+            display_cols = ["symbol", "volatility_7d" if vol_timeframe == "7d" else "volatility_30d", "current_volume_formatted", "market_cap_formatted"]
             st.dataframe(vol_df.head(20)[display_cols].rename(columns={
-                vol_col: f"{vol_timeframe} Volatility %",
+                "volatility_7d" if vol_timeframe == "7d" else "volatility_30d": f"{vol_timeframe} Volatility %",
                 "current_volume_formatted": "Volume",
                 "market_cap_formatted": "Market Cap"
             }), use_container_width=True)
