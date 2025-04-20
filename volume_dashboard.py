@@ -443,8 +443,6 @@ def main():
         The volatility shown is annualized (converted to a yearly rate) and expressed as a percentage. You can switch between 7-day and 30-day calculation windows using the timeframe selector in the sidebar.
         """)
         
-        st.write(f"Realized volatility over {st.session_state.volatility_timeframe} timeframe")
-        
         if len(vol_df) > 0:
             # Create a new DataFrame for the plot
             plot_df = vol_df.head(20).copy()
