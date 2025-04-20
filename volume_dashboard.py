@@ -165,7 +165,10 @@ def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_chang
             file_alert_times = json.load(f)
             # Convert string timestamps back to datetime objects
             for sym, time_str in file_alert_times.items():
-                st.session_state.last_alert_times[sym] = datetime.fromisoformat(time_str)
+                file_time = datetime.fromisoformat(time_str)
+                # Only update if file has more recent time or symbol doesn't exist in session state
+                if sym not in st.session_state.last_alert_times or file_time > st.session_state.last_alert_times[sym]:
+                    st.session_state.last_alert_times[sym] = file_time
     except (FileNotFoundError, json.JSONDecodeError):
         pass
     
@@ -176,6 +179,8 @@ def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_chang
         last_alert_time = st.session_state.last_alert_times[symbol]
         hours_since_last_alert = (current_time - last_alert_time).total_seconds() / 3600
         if hours_since_last_alert < 24:
+            # Debug: Show why alert was skipped
+            st.sidebar.write(f"Skipping alert for {symbol}: {hours_since_last_alert:.2f} hours since last alert")
             return  # Skip alert if less than 24 hours since last alert
     
     message = (
@@ -205,6 +210,9 @@ def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_chang
             file_alert_times = {sym: time.isoformat() for sym, time in st.session_state.last_alert_times.items()}
             with open('alert_times.json', 'w') as f:
                 json.dump(file_alert_times, f)
+                
+            # Debug: Show alert was sent
+            st.sidebar.write(f"Alert sent for {symbol} at {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
         else:
             st.warning(f"Failed to send Telegram alert: {response.text}")
     except Exception as e:
