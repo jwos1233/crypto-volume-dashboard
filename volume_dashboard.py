@@ -512,6 +512,15 @@ async def get_sector_token_breakdown(session, sector_name, tokens):
     
     return sorted(token_stats, key=lambda x: x['zscore'], reverse=True)
 
+async def get_token_breakdown_for_sector(sector, tokens):
+    """Get token breakdown for a sector"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    async with aiohttp.ClientSession(timeout=TIMEOUT) as session:
+        token_stats = await get_sector_token_breakdown(session, sector, tokens)
+    loop.close()
+    return token_stats
+
 async def run_sector_analysis(session):
     """Run sector analysis and return results"""
     all_stats = {}
@@ -814,19 +823,25 @@ def main():
             for sector, stats in all_stats.items():
                 sector_data.append({
                     "Sector": sector,
-                    "24H Volume": format_currency(stats["current_volume"]),
+                    "24H Volume": stats["current_volume"],  # Raw value for plotting
+                    "24H Volume Formatted": format_currency(stats["current_volume"]),  # Formatted for display
                     "Avg Volume": format_currency(stats["avg_volume"]),
-                    "Z-Score": f"{stats['zscore_volume']:.2f}",
-                    "24h Change": f"{stats['dod_change_pct']:.2f}%"
+                    "Z-Score": stats["zscore_volume"],  # Raw value for plotting
+                    "Z-Score Formatted": f"{stats['zscore_volume']:.2f}",  # Formatted for display
+                    "24h Change": stats["dod_change_pct"],  # Raw value for plotting
+                    "24h Change Formatted": f"{stats['dod_change_pct']:.2f}%"  # Formatted for display
                 })
             
             sector_df = pd.DataFrame(sector_data)
             sector_df = sector_df.sort_values(by="Z-Score", ascending=False)
             
-            # Display sector stats table
-            st.dataframe(sector_df, use_container_width=True)
+            # Display sector stats table with formatted values
+            display_df = sector_df.copy()
+            display_df = display_df[["Sector", "24H Volume Formatted", "Avg Volume", "Z-Score Formatted", "24h Change Formatted"]]
+            display_df.columns = ["Sector", "24H Volume", "Avg Volume", "Z-Score", "24h Change"]
+            st.dataframe(display_df, use_container_width=True)
             
-            # Create scatter plot for sectors
+            # Create scatter plot for sectors using raw values
             fig = px.scatter(sector_df,
                            x="Sector",
                            y="Z-Score",
@@ -846,8 +861,7 @@ def main():
                         # Get token breakdown for this sector
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
-                        with aiohttp.ClientSession(timeout=TIMEOUT) as session:
-                            token_stats = loop.run_until_complete(get_sector_token_breakdown_with_session(session, sector, SECTORS[sector]))
+                        token_stats = loop.run_until_complete(get_token_breakdown_for_sector(sector, SECTORS[sector]))
                         loop.close()
                         
                         # Create DataFrame for token stats
