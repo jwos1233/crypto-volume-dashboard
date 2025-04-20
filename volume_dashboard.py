@@ -350,168 +350,167 @@ def main():
     # Get current active tab
     active_tab = st.session_state.active_tab
 
-    # Show all tabs content
-    with active_tab:
-        if active_tab == "Volume Spikes":
-            st.header("Top Volume Spike Candidates")
-            st.write("Tokens with unusual volume spikes (Z-score > 2)")
-            
-            if len(zscore_df) > 0:
-                # Create a new DataFrame for the plot
-                plot_df = zscore_df.head(20).copy()
-                plot_df['abs_zscore'] = abs(plot_df['zscore_volume'])
-                
-                # Create scatter plot
-                fig = px.scatter(plot_df,
-                                x="market_cap",
-                                y="current_volume",
-                                size="abs_zscore",
-                                color="zscore_volume",
-                                color_continuous_scale=["red", "yellow", "green"],
-                                hover_name="symbol",
-                                log_x=True,
-                                log_y=True,
-                                title="Volume vs Market Cap (Size by |Z-score|, Color by Z-score)")
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Display table with formatted values
-                display_cols = ["symbol", "zscore_volume", "percentile_volume", "dod_change_pct", 
-                              "current_volume_formatted", "market_cap_formatted"]
-                st.dataframe(zscore_df.head(20)[display_cols].rename(columns={
-                    "zscore_volume": "Z-Score",
-                    "percentile_volume": "Percentile",
-                    "dod_change_pct": "24h Change",
-                    "current_volume_formatted": "Current Volume",
-                    "market_cap_formatted": "Market Cap"
-                }), use_container_width=True)
-            else:
-                st.warning("No tokens found matching the criteria.")
+    # Show content based on active tab
+    if active_tab == "Volume Spikes":
+        st.header("Top Volume Spike Candidates")
+        st.write("Tokens with unusual volume spikes (Z-score > 2)")
         
-        elif active_tab == "Liquidity":
-            st.header("Highest Volume/Market Cap Ratios")
-            st.write("Tokens with highest volume relative to market cap (shown as percentage)")
+        if len(zscore_df) > 0:
+            # Create a new DataFrame for the plot
+            plot_df = zscore_df.head(20).copy()
+            plot_df['abs_zscore'] = abs(plot_df['zscore_volume'])
             
-            if len(liquidity_df) > 0:
-                # Create a new DataFrame for the plot
-                plot_df = liquidity_df.head(20).copy()
-                
-                # Create scatter plot
-                fig = px.scatter(plot_df,
-                                x="market_cap",
-                                y="current_volume",
-                                size="volume_to_mcap",
-                                color="volume_to_mcap",
-                                color_continuous_scale="Viridis",
-                                hover_name="symbol",
-                                log_x=True,
-                                log_y=True,
-                                title="Volume vs Market Cap (Size and Color by Volume/MCap Ratio)")
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Display table with formatted values
-                display_cols = ["symbol", "volume_to_mcap_formatted", "current_volume_formatted", "market_cap_formatted"]
-                st.dataframe(liquidity_df.head(20)[display_cols].rename(columns={
-                    "volume_to_mcap_formatted": "Volume/MCap",
-                    "current_volume_formatted": "Current Volume",
-                    "market_cap_formatted": "Market Cap"
-                }), use_container_width=True)
-            else:
-                st.warning("No tokens found matching the criteria.")
+            # Create scatter plot
+            fig = px.scatter(plot_df,
+                            x="market_cap",
+                            y="current_volume",
+                            size="abs_zscore",
+                            color="zscore_volume",
+                            color_continuous_scale=["red", "yellow", "green"],
+                            hover_name="symbol",
+                            log_x=True,
+                            log_y=True,
+                            title="Volume vs Market Cap (Size by |Z-score|, Color by Z-score)")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Display table with formatted values
+            display_cols = ["symbol", "zscore_volume", "percentile_volume", "dod_change_pct", 
+                          "current_volume_formatted", "market_cap_formatted"]
+            st.dataframe(zscore_df.head(20)[display_cols].rename(columns={
+                "zscore_volume": "Z-Score",
+                "percentile_volume": "Percentile",
+                "dod_change_pct": "24h Change",
+                "current_volume_formatted": "Current Volume",
+                "market_cap_formatted": "Market Cap"
+            }), use_container_width=True)
+        else:
+            st.warning("No tokens found matching the criteria.")
+
+    elif active_tab == "Liquidity":
+        st.header("Highest Volume/Market Cap Ratios")
+        st.write("Tokens with highest volume relative to market cap (shown as percentage)")
         
-        elif active_tab == "Acceleration":
-            st.header("Top Volume Accelerators")
-            st.write("Tokens with highest volume acceleration (Current Volume / 7-day Average)")
+        if len(liquidity_df) > 0:
+            # Create a new DataFrame for the plot
+            plot_df = liquidity_df.head(20).copy()
             
-            if len(accel_df) > 0:
-                # Create a new DataFrame for the plot
-                plot_df = accel_df.head(20).copy()
-                plot_df['abs_accel'] = abs(plot_df['volume_acceleration'])
-                
-                # Create scatter plot
-                fig = px.scatter(plot_df,
-                                x="market_cap",
-                                y="current_volume",
-                                size="abs_accel",
-                                color="volume_acceleration",
-                                color_continuous_scale=["red", "yellow", "green"],
-                                hover_name="symbol",
-                                log_x=True,
-                                log_y=True,
-                                title="Volume vs Market Cap (Size by |Acceleration|, Color by Acceleration)")
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Display table with formatted values
-                display_cols = ["symbol", "volume_acceleration_formatted", "current_volume_formatted", "avg_volume_formatted"]
-                st.dataframe(accel_df.head(20)[display_cols].rename(columns={
-                    "volume_acceleration_formatted": "Volume Acceleration",
-                    "current_volume_formatted": "Current Volume",
-                    "avg_volume_formatted": "Average Volume"
-                }), use_container_width=True)
-            else:
-                st.warning("No tokens found matching the criteria.")
+            # Create scatter plot
+            fig = px.scatter(plot_df,
+                            x="market_cap",
+                            y="current_volume",
+                            size="volume_to_mcap",
+                            color="volume_to_mcap",
+                            color_continuous_scale="Viridis",
+                            hover_name="symbol",
+                            log_x=True,
+                            log_y=True,
+                            title="Volume vs Market Cap (Size and Color by Volume/MCap Ratio)")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Display table with formatted values
+            display_cols = ["symbol", "volume_to_mcap_formatted", "current_volume_formatted", "market_cap_formatted"]
+            st.dataframe(liquidity_df.head(20)[display_cols].rename(columns={
+                "volume_to_mcap_formatted": "Volume/MCap",
+                "current_volume_formatted": "Current Volume",
+                "market_cap_formatted": "Market Cap"
+            }), use_container_width=True)
+        else:
+            st.warning("No tokens found matching the criteria.")
+
+    elif active_tab == "Acceleration":
+        st.header("Top Volume Accelerators")
+        st.write("Tokens with highest volume acceleration (Current Volume / 7-day Average)")
         
-        elif active_tab == "Volatility":
-            st.header("Volatility Analysis")
+        if len(accel_df) > 0:
+            # Create a new DataFrame for the plot
+            plot_df = accel_df.head(20).copy()
+            plot_df['abs_accel'] = abs(plot_df['volume_acceleration'])
             
-            st.markdown("""
-            ### Volatility Analysis
-            This section analyzes price volatility using Parkinson's method, which uses high/low price ranges to provide a more accurate measure of volatility than simple returns.
-            """)
+            # Create scatter plot
+            fig = px.scatter(plot_df,
+                            x="market_cap",
+                            y="current_volume",
+                            size="abs_accel",
+                            color="volume_acceleration",
+                            color_continuous_scale=["red", "yellow", "green"],
+                            hover_name="symbol",
+                            log_x=True,
+                            log_y=True,
+                            title="Volume vs Market Cap (Size by |Acceleration|, Color by Acceleration)")
+            st.plotly_chart(fig, use_container_width=True)
             
-            # Add timeframe selector at the top of the volatility tab
-            timeframe = st.radio(
-                "Select Timeframe:",
-                ["7d", "30d"],
-                index=0 if st.session_state.volatility_timeframe == "7d" else 1,
-                key="vol_timeframe",
-                horizontal=True
+            # Display table with formatted values
+            display_cols = ["symbol", "volume_acceleration_formatted", "current_volume_formatted", "avg_volume_formatted"]
+            st.dataframe(accel_df.head(20)[display_cols].rename(columns={
+                "volume_acceleration_formatted": "Volume Acceleration",
+                "current_volume_formatted": "Current Volume",
+                "avg_volume_formatted": "Average Volume"
+            }), use_container_width=True)
+        else:
+            st.warning("No tokens found matching the criteria.")
+
+    elif active_tab == "Volatility":
+        st.header("Volatility Analysis")
+        
+        st.markdown("""
+        ### Volatility Analysis
+        This section analyzes price volatility using Parkinson's method, which uses high/low price ranges to provide a more accurate measure of volatility than simple returns.
+        """)
+        
+        # Add timeframe selector at the top of the volatility tab
+        timeframe = st.radio(
+            "Select Timeframe:",
+            ["7d", "30d"],
+            index=0 if st.session_state.volatility_timeframe == "7d" else 1,
+            key="vol_timeframe",
+            horizontal=True
+        )
+        
+        # Update session state when timeframe changes
+        if timeframe != st.session_state.volatility_timeframe:
+            st.session_state.volatility_timeframe = timeframe
+            # Force a rerun to update the display
+            st.experimental_rerun()
+        
+        st.markdown("""
+        The volatility shown is annualized (converted to a yearly rate) and expressed as a percentage. For example:
+        - A 50% volatility means the asset's price could move up or down by 50% over a year
+        - You can switch between 7-day and 30-day calculation windows using the timeframe selector above
+        """)
+        
+        st.write(f"Realized volatility over {st.session_state.volatility_timeframe} timeframe")
+        
+        if len(vol_df) > 0:
+            # Create a new DataFrame for the plot
+            plot_df = vol_df.head(20).copy()
+            
+            # Create scatter plot
+            fig = px.scatter(plot_df,
+                            x="market_cap",
+                            y="volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d",
+                            size="current_volume",
+                            color="volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d",
+                            color_continuous_scale="Viridis",
+                            hover_name="symbol",
+                            log_x=True,
+                            title=f"Realized Volatility ({st.session_state.volatility_timeframe})")
+            
+            fig.update_layout(
+                yaxis_title=f"Realized Volatility % ({st.session_state.volatility_timeframe})",
+                xaxis_title="Market Cap (USD)"
             )
             
-            # Update session state when timeframe changes
-            if timeframe != st.session_state.volatility_timeframe:
-                st.session_state.volatility_timeframe = timeframe
-                # Force a rerun to update the display
-                st.experimental_rerun()
+            st.plotly_chart(fig, use_container_width=True)
             
-            st.markdown("""
-            The volatility shown is annualized (converted to a yearly rate) and expressed as a percentage. For example:
-            - A 50% volatility means the asset's price could move up or down by 50% over a year
-            - You can switch between 7-day and 30-day calculation windows using the timeframe selector above
-            """)
-            
-            st.write(f"Realized volatility over {st.session_state.volatility_timeframe} timeframe")
-            
-            if len(vol_df) > 0:
-                # Create a new DataFrame for the plot
-                plot_df = vol_df.head(20).copy()
-                
-                # Create scatter plot
-                fig = px.scatter(plot_df,
-                                x="market_cap",
-                                y="volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d",
-                                size="current_volume",
-                                color="volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d",
-                                color_continuous_scale="Viridis",
-                                hover_name="symbol",
-                                log_x=True,
-                                title=f"Realized Volatility ({st.session_state.volatility_timeframe})")
-                
-                fig.update_layout(
-                    yaxis_title=f"Realized Volatility % ({st.session_state.volatility_timeframe})",
-                    xaxis_title="Market Cap (USD)"
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Display table with formatted values
-                display_cols = ["symbol", "volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d", "current_volume_formatted", "market_cap_formatted"]
-                st.dataframe(vol_df.head(20)[display_cols].rename(columns={
-                    "volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d": f"{st.session_state.volatility_timeframe} Volatility %",
-                    "current_volume_formatted": "Volume",
-                    "market_cap_formatted": "Market Cap"
-                }), use_container_width=True)
-            else:
-                st.warning("No tokens found matching the criteria.")
+            # Display table with formatted values
+            display_cols = ["symbol", "volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d", "current_volume_formatted", "market_cap_formatted"]
+            st.dataframe(vol_df.head(20)[display_cols].rename(columns={
+                "volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d": f"{st.session_state.volatility_timeframe} Volatility %",
+                "current_volume_formatted": "Volume",
+                "market_cap_formatted": "Market Cap"
+            }), use_container_width=True)
+        else:
+            st.warning("No tokens found matching the criteria.")
     
     # Add timestamp
     st.sidebar.write(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
