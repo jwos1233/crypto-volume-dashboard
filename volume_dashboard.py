@@ -31,7 +31,7 @@ if not API_KEY:
 
 HEADERS = {"x-cg-pro-api-key": API_KEY}
 MIN_MARKET_CAP = 300_000_000  # $300M
-IGNORE_SYMBOLS = {"EETH""XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
+IGNORE_SYMBOLS = {"EETH","BUSD","MSOL","XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
 TIMEOUT = aiohttp.ClientTimeout(total=30)  # 30 seconds timeout
@@ -146,7 +146,7 @@ def process_volume_stats(_tokens, volume_data):
             z = (current_volume - mu) / sigma if sigma != 0 else 0
             pctl = percentileofscore(hist_volumes, current_volume)
             dod_change = (current_volume - previous_volume) / previous_volume * 100
-            vol_mcap_ratio = current_volume / market_cap
+            vol_mcap_ratio = current_volume / market_cap * 100  # Convert to percentage
             volume_accel = current_volume / avg_volume_7d if avg_volume_7d != 0 else 0
 
             results.append({
@@ -155,13 +155,15 @@ def process_volume_stats(_tokens, volume_data):
                 "percentile_volume": round(pctl, 2),
                 "dod_change_pct": f"{round(dod_change, 2)}%",
                 "volume_acceleration": round(volume_accel, 2),
+                "volume_acceleration_formatted": f"{round(volume_accel, 2)}x",
                 "current_volume": current_volume,  # Keep raw value for filtering
                 "current_volume_formatted": format_currency(current_volume),
                 "avg_volume": mu,  # Keep raw value for calculations
                 "avg_volume_formatted": format_currency(mu),
                 "market_cap": market_cap,  # Keep raw value for filtering
                 "market_cap_formatted": format_currency(market_cap),
-                "volume_to_mcap": f"{round(vol_mcap_ratio * 100, 2)}%"
+                "volume_to_mcap": vol_mcap_ratio,  # Keep raw value for sorting
+                "volume_to_mcap_formatted": f"{round(vol_mcap_ratio, 2)}%"  # Formatted for display
             })
         except Exception as e:
             st.warning(f"Error processing {symbol}: {str(e)}")
@@ -277,7 +279,7 @@ def main():
     
     with tab2:
         st.header("Highest Volume/Market Cap Ratios")
-        st.write("Tokens with highest volume relative to market cap")
+        st.write("Tokens with highest volume relative to market cap (shown as percentage)")
         
         if len(liquidity_df) > 0:
             # Create a new DataFrame for the plot
@@ -293,13 +295,13 @@ def main():
                             hover_name="symbol",
                             log_x=True,
                             log_y=True,
-                            title="Volume vs Market Cap (Size by Volume/Market Cap Ratio)")
+                            title="Volume vs Market Cap (Size and Color by Volume/MCap Ratio)")
             st.plotly_chart(fig, use_container_width=True)
             
             # Display table with formatted values
-            display_cols = ["symbol", "volume_to_mcap", "current_volume_formatted", "market_cap_formatted"]
+            display_cols = ["symbol", "volume_to_mcap_formatted", "current_volume_formatted", "market_cap_formatted"]
             st.dataframe(liquidity_df.head(20)[display_cols].rename(columns={
-                "volume_to_mcap": "Volume/MCap",
+                "volume_to_mcap_formatted": "Volume/MCap",
                 "current_volume_formatted": "Current Volume",
                 "market_cap_formatted": "Market Cap"
             }), use_container_width=True)
@@ -308,7 +310,7 @@ def main():
     
     with tab3:
         st.header("Top Volume Accelerators")
-        st.write("Tokens with highest volume acceleration (Current vs 7d Avg)")
+        st.write("Tokens with highest volume acceleration (Current Volume / 7-day Average)")
         
         if len(accel_df) > 0:
             # Create a new DataFrame for the plot
@@ -329,9 +331,9 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
             
             # Display table with formatted values
-            display_cols = ["symbol", "volume_acceleration", "current_volume_formatted", "avg_volume_formatted"]
+            display_cols = ["symbol", "volume_acceleration_formatted", "current_volume_formatted", "avg_volume_formatted"]
             st.dataframe(accel_df.head(20)[display_cols].rename(columns={
-                "volume_acceleration": "Volume Acceleration",
+                "volume_acceleration_formatted": "Volume Acceleration",
                 "current_volume_formatted": "Current Volume",
                 "avg_volume_formatted": "Average Volume"
             }), use_container_width=True)
