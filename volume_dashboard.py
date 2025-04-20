@@ -273,6 +273,10 @@ def main():
     if 'active_tab' not in st.session_state:
         st.session_state.active_tab = "Volume Spikes"
     
+    # Initialize session state for volatility timeframe
+    if 'vol_timeframe' not in st.session_state:
+        st.session_state.vol_timeframe = "7d"
+    
     # Add key features description
     st.markdown("""
     ### Key Features
@@ -443,7 +447,9 @@ def main():
         # Add timeframe selection in the tab
         col1, col2 = st.columns([2, 3])
         with col1:
-            vol_timeframe = st.radio("Timeframe", ["7d", "30d"], horizontal=True)
+            st.session_state.vol_timeframe = st.radio("Timeframe", ["7d", "30d"], 
+                                                    horizontal=True,
+                                                    index=0 if st.session_state.vol_timeframe == "7d" else 1)
         
         st.markdown("""
         The volatility shown is annualized (converted to a yearly rate) and expressed as a percentage. For example:
@@ -451,7 +457,7 @@ def main():
         - You can switch between 7-day and 30-day calculation windows using the timeframe selector above
         """)
         
-        st.write(f"Realized volatility over {vol_timeframe} timeframe")
+        st.write(f"Realized volatility over {st.session_state.vol_timeframe} timeframe")
         
         if len(vol_df) > 0:
             # Create a new DataFrame for the plot
@@ -460,25 +466,25 @@ def main():
             # Create scatter plot
             fig = px.scatter(plot_df,
                             x="market_cap",
-                            y="volatility_7d" if vol_timeframe == "7d" else "volatility_30d",
+                            y="volatility_7d" if st.session_state.vol_timeframe == "7d" else "volatility_30d",
                             size="current_volume",
-                            color="volatility_7d" if vol_timeframe == "7d" else "volatility_30d",
+                            color="volatility_7d" if st.session_state.vol_timeframe == "7d" else "volatility_30d",
                             color_continuous_scale="Viridis",
                             hover_name="symbol",
                             log_x=True,
-                            title=f"Realized Volatility ({vol_timeframe})")
+                            title=f"Realized Volatility ({st.session_state.vol_timeframe})")
             
             fig.update_layout(
-                yaxis_title=f"Realized Volatility % ({vol_timeframe})",
+                yaxis_title=f"Realized Volatility % ({st.session_state.vol_timeframe})",
                 xaxis_title="Market Cap (USD)"
             )
             
             st.plotly_chart(fig, use_container_width=True)
             
             # Display table with formatted values
-            display_cols = ["symbol", "volatility_7d" if vol_timeframe == "7d" else "volatility_30d", "current_volume_formatted", "market_cap_formatted"]
+            display_cols = ["symbol", "volatility_7d" if st.session_state.vol_timeframe == "7d" else "volatility_30d", "current_volume_formatted", "market_cap_formatted"]
             st.dataframe(vol_df.head(20)[display_cols].rename(columns={
-                "volatility_7d" if vol_timeframe == "7d" else "volatility_30d": f"{vol_timeframe} Volatility %",
+                "volatility_7d" if st.session_state.vol_timeframe == "7d" else "volatility_30d": f"{st.session_state.vol_timeframe} Volatility %",
                 "current_volume_formatted": "Volume",
                 "market_cap_formatted": "Market Cap"
             }), use_container_width=True)
