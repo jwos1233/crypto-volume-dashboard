@@ -14,6 +14,7 @@ import os
 from dotenv import load_dotenv
 import contextlib
 import requests
+import numpy as np
 
 # Load environment variables
 load_dotenv()
@@ -140,19 +141,20 @@ async def fetch_volume_history(_session, token_id):
                     if retry < MAX_RETRIES - 1:
                         await asyncio.sleep(RETRY_DELAY)
                         continue
-                    return None
+                    return None, None
                 data = await resp.json()
                 volumes = data.get("total_volumes", [])
-                if len(volumes) < 2:
-                    return None
-                return [float(v[1]) for v in volumes]
+                prices = data.get("prices", [])  # Get price data as well
+                if len(volumes) < 2 or len(prices) < 2:
+                    return None, None
+                return [float(v[1]) for v in volumes], [float(p[1]) for p in prices]
         except Exception as e:
             if retry < MAX_RETRIES - 1:
                 await asyncio.sleep(RETRY_DELAY)
                 continue
-            st.error(f"Error fetching volume for {token_id}: {str(e)}")
-            return None
-    return None
+            st.error(f"Error fetching data for {token_id}: {str(e)}")
+            return None, None
+    return None, None
 
 def format_currency(value):
     """Format large numbers into millions (M) or billions (B)"""
@@ -163,16 +165,33 @@ def format_currency(value):
     else:
         return f"${value:,.2f}"
 
+def calculate_realized_volatility(prices, window):
+    """Calculate realized volatility over a given window of days"""
+    if len(prices) < window + 1:
+        return None
+    
+    # Calculate daily returns
+    returns = [np.log(prices[i] / prices[i-1]) for i in range(1, len(prices))]
+    
+    # Calculate rolling volatility (annualized)
+    volatility = np.std(returns[-window:]) * np.sqrt(365) * 100  # Convert to percentage
+    return volatility
+
 @st.cache_data(ttl=300)
 def process_volume_stats(_tokens, volume_data):
     results = []
-    for (token_id, symbol, market_cap, _), volumes in zip(_tokens, volume_data):
-        if volumes is None or len(volumes) < 10:
+    for (token_id, symbol, market_cap, _), (volumes, prices) in zip(_tokens, volume_data):
+        if volumes is None or prices is None or len(volumes) < 10 or len(prices) < 30:
             continue
         try:
             current_volume = float(volumes[-1])
             previous_volume = float(volumes[-2])
             hist_volumes = [float(v) for v in volumes[:-1]]
+            
+            # Calculate volatilities
+            vol_7d = calculate_realized_volatility(prices, 7)
+            vol_30d = calculate_realized_volatility(prices, 30)
+            
             if len(hist_volumes) < 10 or previous_volume == 0 or market_cap == 0:
                 continue
 
@@ -196,14 +215,16 @@ def process_volume_stats(_tokens, volume_data):
                 "dod_change_pct": f"{round(dod_change, 2)}%",
                 "volume_acceleration": round(volume_accel, 2),
                 "volume_acceleration_formatted": f"{round(volume_accel, 2)}x",
-                "current_volume": current_volume,  # Keep raw value for filtering
+                "current_volume": current_volume,
                 "current_volume_formatted": format_currency(current_volume),
-                "avg_volume": mu,  # Keep raw value for calculations
+                "avg_volume": mu,
                 "avg_volume_formatted": format_currency(mu),
-                "market_cap": market_cap,  # Keep raw value for filtering
+                "market_cap": market_cap,
                 "market_cap_formatted": format_currency(market_cap),
-                "volume_to_mcap": vol_mcap_ratio,  # Keep raw value for sorting
-                "volume_to_mcap_formatted": f"{round(vol_mcap_ratio, 2)}%"  # Formatted for display
+                "volume_to_mcap": vol_mcap_ratio,
+                "volume_to_mcap_formatted": f"{round(vol_mcap_ratio, 2)}%",
+                "volatility_7d": round(vol_7d, 2) if vol_7d is not None else None,
+                "volatility_30d": round(vol_30d, 2) if vol_30d is not None else None
             })
         except Exception as e:
             st.warning(f"Error processing {symbol}: {str(e)}")
@@ -211,12 +232,13 @@ def process_volume_stats(_tokens, volume_data):
 
     df = pd.DataFrame(results)
     if len(df) == 0:
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         
     df_zsorted = df.sort_values(by="zscore_volume", ascending=False)
     df_liquidity = df.sort_values(by="volume_to_mcap", ascending=False)
     df_accel = df.sort_values(by="volume_acceleration", ascending=False)
-    return df_zsorted, df_liquidity, df_accel
+    df_vol = df.dropna(subset=["volatility_7d", "volatility_30d"]).copy()
+    return df_zsorted, df_liquidity, df_accel, df_vol
 
 async def run_analysis():
     try:
@@ -224,7 +246,7 @@ async def run_analysis():
             tokens = await fetch_tokens(session)
             if not tokens:
                 st.error("No tokens found. Please check your API key and try again.")
-                return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+                return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
                 
             st.info(f"Found {len(tokens)} tokens. Computing volume statistics...")
             
@@ -237,11 +259,11 @@ async def run_analysis():
             volume_data = await tqdm_asyncio.gather(*(t[3] for t in tasks))
             
             # Process the results
-            zscore_df, liquidity_df, accel_df = process_volume_stats(tasks, volume_data)
-            return zscore_df, liquidity_df, accel_df
+            zscore_df, liquidity_df, accel_df, vol_df = process_volume_stats(tasks, volume_data)
+            return zscore_df, liquidity_df, accel_df, vol_df
     except Exception as e:
         st.error(f"Error running analysis: {str(e)}")
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 def main():
     st.set_page_config(page_title="Crypto Volume Analysis", layout="wide")
@@ -268,6 +290,15 @@ def main():
                                         value=10, 
                                         step=1)
     
+    # Add volatility filters
+    st.sidebar.subheader("Volatility Settings")
+    vol_timeframe = st.sidebar.radio("Volatility Timeframe", ["7d", "30d"], horizontal=True)
+    min_volatility = st.sidebar.number_input("Minimum Volatility (%)", 
+                                            min_value=0, 
+                                            max_value=500, 
+                                            value=50, 
+                                            step=10)
+    
     # Add refresh button
     if st.sidebar.button("Refresh Data"):
         st.cache_data.clear()
@@ -276,7 +307,7 @@ def main():
     with st.spinner("Fetching and analyzing data..."):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        zscore_df, liquidity_df, accel_df = loop.run_until_complete(run_analysis())
+        zscore_df, liquidity_df, accel_df, vol_df = loop.run_until_complete(run_analysis())
         loop.close()
     
     if len(zscore_df) == 0:
@@ -287,8 +318,13 @@ def main():
     zscore_df = zscore_df[zscore_df["market_cap"] >= min_market_cap * 1e6]
     zscore_df = zscore_df[zscore_df["current_volume"] >= min_volume * 1e6]
     
+    # Apply volatility filter
+    vol_col = "volatility_7d" if vol_timeframe == "7d" else "volatility_30d"
+    vol_df = vol_df[vol_df[vol_col] >= min_volatility]
+    vol_df = vol_df.sort_values(by=vol_col, ascending=False)
+    
     # Create tabs
-    tab1, tab2, tab3 = st.tabs(["Volume Spikes", "Liquidity", "Acceleration"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Volume Spikes", "Liquidity", "Acceleration", "Volatility"])
     
     with tab1:
         st.header("Top Volume Spike Candidates")
@@ -384,6 +420,42 @@ def main():
                 "volume_acceleration_formatted": "Volume Acceleration",
                 "current_volume_formatted": "Current Volume",
                 "avg_volume_formatted": "Average Volume"
+            }), use_container_width=True)
+        else:
+            st.warning("No tokens found matching the criteria.")
+    
+    with tab4:
+        st.header("Volatility Analysis")
+        st.write(f"Realized volatility over {vol_timeframe} timeframe")
+        
+        if len(vol_df) > 0:
+            # Create a new DataFrame for the plot
+            plot_df = vol_df.head(20).copy()
+            
+            # Create scatter plot
+            fig = px.scatter(plot_df,
+                            x="market_cap",
+                            y=vol_col,
+                            size="current_volume",
+                            color=vol_col,
+                            color_continuous_scale="Viridis",
+                            hover_name="symbol",
+                            log_x=True,
+                            title=f"Realized Volatility ({vol_timeframe})")
+            
+            fig.update_layout(
+                yaxis_title=f"Realized Volatility % ({vol_timeframe})",
+                xaxis_title="Market Cap (USD)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Display table with formatted values
+            display_cols = ["symbol", vol_col, "current_volume_formatted", "market_cap_formatted"]
+            st.dataframe(vol_df.head(20)[display_cols].rename(columns={
+                vol_col: f"{vol_timeframe} Volatility %",
+                "current_volume_formatted": "Volume",
+                "market_cap_formatted": "Market Cap"
             }), use_container_width=True)
         else:
             st.warning("No tokens found matching the criteria.")
