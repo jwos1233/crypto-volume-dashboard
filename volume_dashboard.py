@@ -426,6 +426,14 @@ def main():
     
     with tab4:
         st.header("Volatility Analysis")
+        st.markdown("""
+        ### Understanding Volatility
+
+        The volatility shown is annualized (converted to a yearly rate) and expressed as a percentage. For example:
+        - A 50% volatility means the asset's price could move up or down by 50% over a year
+        - You can switch between 7-day and 30-day calculation windows using the sidebar settings
+        """)
+        
         st.write(f"Realized volatility over {vol_timeframe} timeframe")
         
         if len(vol_df) > 0:
