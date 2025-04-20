@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 import contextlib
 import requests
 import numpy as np
+import json
 
 # Load environment variables
 load_dotenv()
@@ -158,6 +159,16 @@ def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_chang
     if 'last_alert_times' not in st.session_state:
         st.session_state.last_alert_times = {}
     
+    # Try to load alert times from file
+    try:
+        with open('alert_times.json', 'r') as f:
+            file_alert_times = json.load(f)
+            # Convert string timestamps back to datetime objects
+            for sym, time_str in file_alert_times.items():
+                st.session_state.last_alert_times[sym] = datetime.fromisoformat(time_str)
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    
     current_time = datetime.now()
     
     # Check if we've sent an alert for this token in the last 24 hours
@@ -189,6 +200,11 @@ def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_chang
         if response.status_code == 200:
             # Update last alert time for this token
             st.session_state.last_alert_times[symbol] = current_time
+            
+            # Save alert times to file
+            file_alert_times = {sym: time.isoformat() for sym, time in st.session_state.last_alert_times.items()}
+            with open('alert_times.json', 'w') as f:
+                json.dump(file_alert_times, f)
         else:
             st.warning(f"Failed to send Telegram alert: {response.text}")
     except Exception as e:
@@ -597,6 +613,10 @@ def main():
         st.sidebar.write("Last Alert Times:")
         for symbol, time in st.session_state.last_alert_times.items():
             st.sidebar.write(f"{symbol}: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+        if st.sidebar.button("Reset Alert Times"):
+            st.session_state.last_alert_times = {}
+            st.sidebar.success("Alert times have been reset")
     
     # Add key features description
     st.markdown("""
