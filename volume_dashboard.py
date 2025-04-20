@@ -247,6 +247,56 @@ def main():
     st.set_page_config(page_title="Crypto Volume Analysis", layout="wide")
     st.title("Crypto Volume Analysis Dashboard")
     
+    # Add comprehensive description
+    st.markdown("""
+    ## Overview
+    This dashboard provides real-time analysis of cryptocurrency trading volumes to identify market opportunities and trends.
+    Data is refreshed every 5 minutes to ensure you have the most up-to-date market insights.
+    
+    ### Key Features
+    - **Volume Spikes Analysis**: Detect unusual trading activity using statistical analysis
+    - **Liquidity Analysis**: Identify tokens with high trading volume relative to market cap
+    - **Volume Acceleration**: Track emerging trends through volume momentum
+    - **Real-time Alerts**: Get notified of significant market movements via Telegram
+    
+    ### Analysis Types
+    
+    #### 1. Volume Spikes Analysis
+    This section identifies tokens experiencing significant deviations from their normal trading patterns using Z-score analysis.
+    
+    **Key Insights:**
+    - Z-scores above 2.0 indicate statistically significant volume spikes
+    - Color coding (red to green) shows the direction of volume change
+    - Bubble size represents the magnitude of the deviation
+    - Helps identify potential market catalysts and trend reversals
+    
+    #### 2. Liquidity Analysis
+    This section examines the relationship between trading volume and market capitalization.
+    
+    **Key Insights:**
+    - High volume/market cap ratios indicate strong market participation
+    - Helps identify tokens with good entry/exit liquidity
+    - Can signal potential market manipulation risks
+    - Useful for assessing trading efficiency
+    
+    #### 3. Volume Acceleration
+    This section tracks how current trading volume compares to recent averages.
+    
+    **Key Insights:**
+    - Values above 1.0 indicate increasing trading activity
+    - Helps identify emerging trends before price movements
+    - Color intensity shows the strength of acceleration
+    - Useful for momentum trading strategies
+    
+    ### Alert System
+    The dashboard includes automated Telegram alerts for significant volume spikes (Z-score > 2.0).
+    Alerts include:
+    - Token symbol and Z-score
+    - Current volume and market cap
+    - 24-hour volume change
+    - Timestamp of the alert
+    """)
+    
     # Add filters
     st.sidebar.header("Filters")
     min_market_cap = st.sidebar.number_input("Minimum Market Cap ($M)", 
