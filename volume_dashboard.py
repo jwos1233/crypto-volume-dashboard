@@ -298,14 +298,6 @@ def main():
                                         value=10, 
                                         step=1)
     
-    # Add volatility filters
-    st.sidebar.subheader("Volatility Settings")
-    min_volatility = st.sidebar.number_input("Minimum Volatility (%)", 
-                                            min_value=0, 
-                                            max_value=500, 
-                                            value=50, 
-                                            step=10)
-    
     # Add volatility timeframe selector to sidebar
     st.session_state.volatility_timeframe = st.sidebar.radio(
         "Volatility Timeframe",
@@ -333,7 +325,6 @@ def main():
     zscore_df = zscore_df[zscore_df["current_volume"] >= min_volume * 1e6]
     
     # Apply volatility filter
-    vol_df = vol_df[vol_df["volatility_7d"] >= min_volatility]
     vol_df = vol_df.sort_values(by="volatility_7d", ascending=False)
     
     # Create tabs
@@ -445,14 +436,11 @@ def main():
         st.header("Volatility Analysis")
         
         st.markdown("""
-        ### Volatility Analysis
         This section analyzes price volatility using Parkinson's method, which uses high/low price ranges to provide a more accurate measure of volatility than simple returns.
         """)
         
         st.markdown("""
-        The volatility shown is annualized (converted to a yearly rate) and expressed as a percentage. For example:
-        - A 50% volatility means the asset's price could move up or down by 50% over a year
-        - You can switch between 7-day and 30-day calculation windows using the timeframe selector in the sidebar
+        The volatility shown is annualized (converted to a yearly rate) and expressed as a percentage. You can switch between 7-day and 30-day calculation windows using the timeframe selector in the sidebar.
         """)
         
         st.write(f"Realized volatility over {st.session_state.volatility_timeframe} timeframe")
