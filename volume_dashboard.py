@@ -558,6 +558,17 @@ async def make_request(session, url, params=None):
             return None
     return None
 
+async def run_all_analysis():
+    """Run both volume and sector analysis"""
+    async with aiohttp.ClientSession(timeout=TIMEOUT) as session:
+        # Run volume analysis
+        zscore_df, liquidity_df, accel_df, vol_df = await run_analysis()
+        
+        # Run sector analysis
+        all_stats, all_history = await run_sector_analysis(session)
+        
+        return zscore_df, liquidity_df, accel_df, vol_df, all_stats, all_history
+
 def main():
     st.set_page_config(page_title="Flow Analysis", layout="wide")
     st.title("Flow Analysis Dashboard")
@@ -608,14 +619,7 @@ def main():
     with st.spinner("Fetching and analyzing data..."):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
-        # Run volume analysis
-        zscore_df, liquidity_df, accel_df, vol_df = loop.run_until_complete(run_analysis())
-        
-        # Run sector analysis
-        with aiohttp.ClientSession(timeout=TIMEOUT) as session:
-            all_stats, all_history = loop.run_until_complete(run_sector_analysis(session))
-        
+        zscore_df, liquidity_df, accel_df, vol_df, all_stats, all_history = loop.run_until_complete(run_all_analysis())
         loop.close()
     
     if len(zscore_df) == 0:
