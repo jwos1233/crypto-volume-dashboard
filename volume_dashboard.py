@@ -49,6 +49,19 @@ def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_chang
         st.warning("Telegram credentials not configured. Please set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in your environment variables.")
         return
     
+    # Initialize last_alert_times in session state if it doesn't exist
+    if 'last_alert_times' not in st.session_state:
+        st.session_state.last_alert_times = {}
+    
+    current_time = datetime.now()
+    
+    # Check if we've sent an alert for this token in the last 24 hours
+    if symbol in st.session_state.last_alert_times:
+        last_alert_time = st.session_state.last_alert_times[symbol]
+        hours_since_last_alert = (current_time - last_alert_time).total_seconds() / 3600
+        if hours_since_last_alert < 24:
+            return  # Skip alert if less than 24 hours since last alert
+    
     message = (
         f"🚨 Volume Spike Alert!\n\n"
         f"Token: {symbol}\n"
@@ -56,7 +69,7 @@ def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_chang
         f"Current Volume: {format_currency(current_volume)}\n"
         f"Market Cap: {format_currency(market_cap)}\n"
         f"24h Change: {volume_change}%\n\n"
-        f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        f"Time: {current_time.strftime('%Y-%m-%d %H:%M:%S')}"
     )
     
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -68,7 +81,10 @@ def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_chang
     
     try:
         response = requests.get(url, params=params)
-        if response.status_code != 200:
+        if response.status_code == 200:
+            # Update last alert time for this token
+            st.session_state.last_alert_times[symbol] = current_time
+        else:
             st.warning(f"Failed to send Telegram alert: {response.text}")
     except Exception as e:
         st.warning(f"Error sending Telegram alert: {str(e)}")
