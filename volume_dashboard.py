@@ -587,7 +587,17 @@ def main():
     # Initialize session state for volatility timeframe if not exists
     if 'volatility_timeframe' not in st.session_state:
         st.session_state.volatility_timeframe = "7d"
-
+        
+    # Initialize session state for alert times if not exists
+    if 'last_alert_times' not in st.session_state:
+        st.session_state.last_alert_times = {}
+        
+    # Debug: Show current alert times
+    if st.sidebar.checkbox("Show Alert Times"):
+        st.sidebar.write("Last Alert Times:")
+        for symbol, time in st.session_state.last_alert_times.items():
+            st.sidebar.write(f"{symbol}: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    
     # Add key features description
     st.markdown("""
     ### Key Features
