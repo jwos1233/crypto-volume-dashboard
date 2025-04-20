@@ -306,6 +306,13 @@ def main():
                                             value=50, 
                                             step=10)
     
+    # Add volatility timeframe selector to sidebar
+    st.session_state.volatility_timeframe = st.sidebar.radio(
+        "Volatility Timeframe",
+        ["7d", "30d"],
+        index=0 if st.session_state.volatility_timeframe == "7d" else 1
+    )
+    
     # Add refresh button
     if st.sidebar.button("Refresh Data"):
         st.cache_data.clear()
@@ -330,28 +337,10 @@ def main():
     vol_df = vol_df.sort_values(by="volatility_7d", ascending=False)
     
     # Create tabs
-    tabs = ["Volume Spikes", "Liquidity", "Acceleration", "Volatility"]
+    tab1, tab2, tab3, tab4 = st.tabs(["Volume Spikes", "Liquidity", "Acceleration", "Volatility"])
 
-    # Create tab buttons in a row
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        if st.button("Volume Spikes", key="tab1"):
-            st.session_state.active_tab = "Volume Spikes"
-    with col2:
-        if st.button("Liquidity", key="tab2"):
-            st.session_state.active_tab = "Liquidity"
-    with col3:
-        if st.button("Acceleration", key="tab3"):
-            st.session_state.active_tab = "Acceleration"
-    with col4:
-        if st.button("Volatility", key="tab4"):
-            st.session_state.active_tab = "Volatility"
-
-    # Get current active tab
-    active_tab = st.session_state.active_tab
-
-    # Show content based on active tab
-    if active_tab == "Volume Spikes":
+    # Volume Spikes Tab
+    with tab1:
         st.header("Top Volume Spike Candidates")
         st.write("Tokens with unusual volume spikes (Z-score > 2)")
         
@@ -386,7 +375,8 @@ def main():
         else:
             st.warning("No tokens found matching the criteria.")
 
-    elif active_tab == "Liquidity":
+    # Liquidity Tab
+    with tab2:
         st.header("Highest Volume/Market Cap Ratios")
         st.write("Tokens with highest volume relative to market cap (shown as percentage)")
         
@@ -417,7 +407,8 @@ def main():
         else:
             st.warning("No tokens found matching the criteria.")
 
-    elif active_tab == "Acceleration":
+    # Acceleration Tab
+    with tab3:
         st.header("Top Volume Accelerators")
         st.write("Tokens with highest volume acceleration (Current Volume / 7-day Average)")
         
@@ -449,7 +440,8 @@ def main():
         else:
             st.warning("No tokens found matching the criteria.")
 
-    elif active_tab == "Volatility":
+    # Volatility Tab
+    with tab4:
         st.header("Volatility Analysis")
         
         st.markdown("""
@@ -457,25 +449,10 @@ def main():
         This section analyzes price volatility using Parkinson's method, which uses high/low price ranges to provide a more accurate measure of volatility than simple returns.
         """)
         
-        # Add timeframe selector at the top of the volatility tab
-        timeframe = st.radio(
-            "Select Timeframe:",
-            ["7d", "30d"],
-            index=0 if st.session_state.volatility_timeframe == "7d" else 1,
-            key="vol_timeframe",
-            horizontal=True
-        )
-        
-        # Update session state when timeframe changes
-        if timeframe != st.session_state.volatility_timeframe:
-            st.session_state.volatility_timeframe = timeframe
-            # Force a rerun to update the display
-            st.experimental_rerun()
-        
         st.markdown("""
         The volatility shown is annualized (converted to a yearly rate) and expressed as a percentage. For example:
         - A 50% volatility means the asset's price could move up or down by 50% over a year
-        - You can switch between 7-day and 30-day calculation windows using the timeframe selector above
+        - You can switch between 7-day and 30-day calculation windows using the timeframe selector in the sidebar
         """)
         
         st.write(f"Realized volatility over {st.session_state.volatility_timeframe} timeframe")
