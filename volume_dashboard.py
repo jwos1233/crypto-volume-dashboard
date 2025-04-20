@@ -42,6 +42,7 @@ MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
 TIMEOUT = aiohttp.ClientTimeout(total=30)  # 30 seconds timeout
 ZSCORE_THRESHOLD = 2.0  # Z-score threshold for alerts
+RATE_LIMIT_DELAY = 1.0  # Rate limit delay in seconds
 
 # Define all sectors and their constituents
 SECTORS = {
@@ -534,6 +535,28 @@ async def run_sector_analysis(session):
 async def get_sector_token_breakdown_with_session(session, sector, tokens):
     """Get token breakdown for a sector with an existing session"""
     return await get_sector_token_breakdown(session, sector, tokens)
+
+async def make_request(session, url, params=None):
+    """Make an API request with retry logic"""
+    for retry in range(MAX_RETRIES):
+        try:
+            if retry > 0:
+                await asyncio.sleep(RATE_LIMIT_DELAY * (retry + 1))
+            async with session.get(url, headers=HEADERS, params=params) as resp:
+                if resp.status == 429:  # Rate limited
+                    if retry < MAX_RETRIES - 1:
+                        continue
+                    return None
+                elif resp.status != 200:
+                    print(f"Error: {resp.status} for {url}")
+                    return None
+                return await resp.json()
+        except Exception as e:
+            print(f"Error making request to {url}: {str(e)}")
+            if retry < MAX_RETRIES - 1:
+                continue
+            return None
+    return None
 
 def main():
     st.set_page_config(page_title="Flow Analysis", layout="wide")
