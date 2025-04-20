@@ -331,7 +331,6 @@ def main():
     
     # Create tabs
     tabs = ["Volume Spikes", "Liquidity", "Acceleration", "Volatility"]
-    active_tab = st.session_state.active_tab
 
     # Create tab buttons in a row
     col1, col2, col3, col4 = st.columns(4)
@@ -348,7 +347,7 @@ def main():
         if st.button("Volatility", key="tab4"):
             st.session_state.active_tab = "Volatility"
 
-    # Update active tab from session state
+    # Get current active tab
     active_tab = st.session_state.active_tab
 
     # Show all tabs content
@@ -454,6 +453,11 @@ def main():
         elif active_tab == "Volatility":
             st.header("Volatility Analysis")
             
+            st.markdown("""
+            ### Volatility Analysis
+            This section analyzes price volatility using Parkinson's method, which uses high/low price ranges to provide a more accurate measure of volatility than simple returns.
+            """)
+            
             # Add timeframe selector at the top of the volatility tab
             timeframe = st.radio(
                 "Select Timeframe:",
@@ -466,7 +470,7 @@ def main():
             # Update session state when timeframe changes
             if timeframe != st.session_state.volatility_timeframe:
                 st.session_state.volatility_timeframe = timeframe
-                # Don't reset the active tab when timeframe changes
+                # Force a rerun to update the display
                 st.experimental_rerun()
             
             st.markdown("""
