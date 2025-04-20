@@ -594,10 +594,10 @@ def main():
     st.markdown("""
     ### Key Features
     - **Volume Spikes Analysis**: Detect unusual trading activity using statistical analysis
-    - **Liquidity Analysis**: Identify tokens with high trading volume relative to market cap
+    - **Sector Analysis**: Analyze volume trends across different crypto sectors
     - **Volume Acceleration**: Track emerging trends through volume momentum
     - **Volatility Analysis**: Realised volatility dashboard across altcoins
-    - **Sector Analysis**: Analyze volume trends across different crypto sectors
+    - **Liquidity Analysis**: Identify tokens with high trading volume relative to market cap
     """)
     
     # Add filters
@@ -653,7 +653,7 @@ def main():
     vol_df = vol_df.sort_values(by="volatility_7d", ascending=False)
     
     # Create tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Volume Spikes", "Liquidity", "Acceleration", "Volatility", "Sector Analysis"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Volume Spikes", "Sector Analysis", "Acceleration", "Volatility", "Liquidity"])
 
     # Volume Spikes Tab
     with tab1:
@@ -694,40 +694,75 @@ def main():
         else:
             st.warning("No tokens found matching the criteria.")
 
-    # Liquidity Tab
+    # Sector Analysis Tab
     with tab2:
-        st.header("Highest Volume/Market Cap Ratios")
+        st.header("Sector Volume Analysis")
         
         st.markdown("""
-        This section identifies tokens with high trading volume relative to their market cap. A high volume/market cap ratio indicates strong liquidity and trading activity. This can be useful for identifying tokens that are actively traded despite their size.
+        This section examines trading volume across sectors. The Z-score indicates how many standard deviations the current sector volume deviates from its historical average. Sectors with a Z-score greater than 2 are highlighted and broken down into their individual constituents below.
         """)
         
-        if len(liquidity_df) > 0:
-            # Create a new DataFrame for the plot
-            plot_df = liquidity_df.head(20).copy()
+        if all_stats:
+            # Create DataFrame for sector stats
+            sector_data = []
+            for sector, stats in all_stats.items():
+                sector_data.append({
+                    "Sector": sector,
+                    "24H Volume": stats["current_volume"],  # Raw value for plotting
+                    "24H Volume Formatted": format_currency(stats["current_volume"]),  # Formatted for display
+                    "Avg Volume": format_currency(stats["avg_volume"]),
+                    "Z-Score": stats["zscore_volume"],  # Raw value for plotting
+                    "Z-Score Formatted": f"{stats['zscore_volume']:.2f}",  # Formatted for display
+                    "24h Change": stats["dod_change_pct"],  # Raw value for plotting
+                    "24h Change Formatted": f"{stats['dod_change_pct']:.2f}%"  # Formatted for display
+                })
             
-            # Create scatter plot
-            fig = px.scatter(plot_df,
-                            x="market_cap",
-                            y="current_volume",
-                            size="volume_to_mcap",
-                            color="volume_to_mcap",
-                            color_continuous_scale="Viridis",
-                            hover_name="symbol",
-                            log_x=True,
-                            log_y=True,
-                            title="Volume vs Market Cap (Size and Color by Volume/MCap Ratio)")
+            sector_df = pd.DataFrame(sector_data)
+            sector_df = sector_df.sort_values(by="Z-Score", ascending=False)
+            
+            # Display sector stats table with formatted values
+            display_df = sector_df.copy()
+            display_df = display_df[["Sector", "24H Volume Formatted", "Avg Volume", "Z-Score Formatted", "24h Change Formatted"]]
+            display_df.columns = ["Sector", "24H Volume", "Avg Volume", "Z-Score", "24h Change"]
+            st.dataframe(display_df, use_container_width=True)
+            
+            # Create scatter plot for sectors using raw values
+            fig = px.scatter(sector_df,
+                           x="Sector",
+                           y="Z-Score",
+                           size="24H Volume",
+                           color="24h Change",
+                           color_continuous_scale=["red", "yellow", "green"],
+                           title="Sector Z-Scores (Size by Volume, Color by 24h Change)")
             st.plotly_chart(fig, use_container_width=True)
             
-            # Display table with formatted values
-            display_cols = ["symbol", "volume_to_mcap_formatted", "current_volume_formatted", "market_cap_formatted"]
-            st.dataframe(liquidity_df.head(20)[display_cols].rename(columns={
-                "volume_to_mcap_formatted": "Volume/MCap",
-                "current_volume_formatted": "Current Volume",
-                "market_cap_formatted": "Market Cap"
-            }), use_container_width=True)
+            # Show token breakdown for high z-score sectors
+            high_z_sectors = [s for s, stats in all_stats.items() if stats['zscore_volume'] > 2]
+            if high_z_sectors:
+                st.subheader("Token Breakdown for High Z-Score Sectors (Z > 2)")
+                
+                for sector in high_z_sectors:
+                    with st.expander(f"{sector} Sector Tokens"):
+                        # Get token breakdown for this sector
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        token_stats = loop.run_until_complete(get_token_breakdown_for_sector(sector, SECTORS[sector]))
+                        loop.close()
+                        
+                        # Create DataFrame for token stats
+                        token_data = []
+                        for token in token_stats:
+                            token_data.append({
+                                "Token": token["symbol"],
+                                "24H Volume": format_currency(token["current_volume"]),
+                                "Avg Volume": format_currency(token["avg_volume"]),
+                                "Z-Score": f"{token['zscore']:.2f}"
+                            })
+                        
+                        token_df = pd.DataFrame(token_data)
+                        st.dataframe(token_df, use_container_width=True)
         else:
-            st.warning("No tokens found matching the criteria.")
+            st.warning("No sector data available. Please try again later.")
 
     # Acceleration Tab
     with tab3:
@@ -809,76 +844,41 @@ def main():
         else:
             st.warning("No tokens found matching the criteria.")
 
-    # Sector Analysis Tab
+    # Liquidity Tab
     with tab5:
-        st.header("Sector Volume Analysis")
+        st.header("Highest Volume/Market Cap Ratios")
         
         st.markdown("""
-        This section examines trading volume across sectors. The Z-score indicates how many standard deviations the current sector volume deviates from its historical average. Sectors with a Z-score greater than 2 are highlighted and broken down into their individual constituents below.
+        This section identifies tokens with high trading volume relative to their market cap. A high volume/market cap ratio indicates strong liquidity and trading activity. This can be useful for identifying tokens that are actively traded despite their size.
         """)
         
-        if all_stats:
-            # Create DataFrame for sector stats
-            sector_data = []
-            for sector, stats in all_stats.items():
-                sector_data.append({
-                    "Sector": sector,
-                    "24H Volume": stats["current_volume"],  # Raw value for plotting
-                    "24H Volume Formatted": format_currency(stats["current_volume"]),  # Formatted for display
-                    "Avg Volume": format_currency(stats["avg_volume"]),
-                    "Z-Score": stats["zscore_volume"],  # Raw value for plotting
-                    "Z-Score Formatted": f"{stats['zscore_volume']:.2f}",  # Formatted for display
-                    "24h Change": stats["dod_change_pct"],  # Raw value for plotting
-                    "24h Change Formatted": f"{stats['dod_change_pct']:.2f}%"  # Formatted for display
-                })
+        if len(liquidity_df) > 0:
+            # Create a new DataFrame for the plot
+            plot_df = liquidity_df.head(20).copy()
             
-            sector_df = pd.DataFrame(sector_data)
-            sector_df = sector_df.sort_values(by="Z-Score", ascending=False)
-            
-            # Display sector stats table with formatted values
-            display_df = sector_df.copy()
-            display_df = display_df[["Sector", "24H Volume Formatted", "Avg Volume", "Z-Score Formatted", "24h Change Formatted"]]
-            display_df.columns = ["Sector", "24H Volume", "Avg Volume", "Z-Score", "24h Change"]
-            st.dataframe(display_df, use_container_width=True)
-            
-            # Create scatter plot for sectors using raw values
-            fig = px.scatter(sector_df,
-                           x="Sector",
-                           y="Z-Score",
-                           size="24H Volume",
-                           color="24h Change",
-                           color_continuous_scale=["red", "yellow", "green"],
-                           title="Sector Z-Scores (Size by Volume, Color by 24h Change)")
+            # Create scatter plot
+            fig = px.scatter(plot_df,
+                            x="market_cap",
+                            y="current_volume",
+                            size="volume_to_mcap",
+                            color="volume_to_mcap",
+                            color_continuous_scale="Viridis",
+                            hover_name="symbol",
+                            log_x=True,
+                            log_y=True,
+                            title="Volume vs Market Cap (Size and Color by Volume/MCap Ratio)")
             st.plotly_chart(fig, use_container_width=True)
             
-            # Show token breakdown for high z-score sectors
-            high_z_sectors = [s for s, stats in all_stats.items() if stats['zscore_volume'] > 2]
-            if high_z_sectors:
-                st.subheader("Token Breakdown for High Z-Score Sectors (Z > 2)")
-                
-                for sector in high_z_sectors:
-                    with st.expander(f"{sector} Sector Tokens"):
-                        # Get token breakdown for this sector
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        token_stats = loop.run_until_complete(get_token_breakdown_for_sector(sector, SECTORS[sector]))
-                        loop.close()
-                        
-                        # Create DataFrame for token stats
-                        token_data = []
-                        for token in token_stats:
-                            token_data.append({
-                                "Token": token["symbol"],
-                                "24H Volume": format_currency(token["current_volume"]),
-                                "Avg Volume": format_currency(token["avg_volume"]),
-                                "Z-Score": f"{token['zscore']:.2f}"
-                            })
-                        
-                        token_df = pd.DataFrame(token_data)
-                        st.dataframe(token_df, use_container_width=True)
+            # Display table with formatted values
+            display_cols = ["symbol", "volume_to_mcap_formatted", "current_volume_formatted", "market_cap_formatted"]
+            st.dataframe(liquidity_df.head(20)[display_cols].rename(columns={
+                "volume_to_mcap_formatted": "Volume/MCap",
+                "current_volume_formatted": "Current Volume",
+                "market_cap_formatted": "Market Cap"
+            }), use_container_width=True)
         else:
-            st.warning("No sector data available. Please try again later.")
-    
+            st.warning("No tokens found matching the criteria.")
+
     # Add timestamp
     st.sidebar.write(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
