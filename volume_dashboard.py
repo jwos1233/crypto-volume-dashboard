@@ -120,7 +120,8 @@ SECTORS = {
         "ronin": "RON",
         "stepn": "GMT",
         "yield-guild-games": "YGG",
-        "magic": "MAGIC"
+        "magic": "MAGIC",
+        "apecoin": "APE"
     },
     "USA": {
         "solana": "SOL",
