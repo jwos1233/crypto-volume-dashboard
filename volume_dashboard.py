@@ -814,7 +814,7 @@ def main():
         st.header("Sector Volume Analysis")
         
         st.markdown("""
-        This section analyzes trading volume across different crypto sectors. The Z-score measures how many standard deviations the current sector volume is from its historical average. A high Z-score indicates significantly higher than normal trading activity in that sector.
+        This section examines trading volume across sectors. The Z-score indicates how many standard deviations the current sector volume deviates from its historical average. Sectors with a Z-score greater than 2 are highlighted and broken down into their individual constituents below.
         """)
         
         if all_stats:
