@@ -266,8 +266,8 @@ async def run_analysis():
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 def main():
-    st.set_page_config(page_title="Crypto Volume Analysis", layout="wide")
-    st.title("Crypto Volume Analysis Dashboard")
+    st.set_page_config(page_title="Flow Analysis", layout="wide")
+    st.title("Flow Analysis Dashboard")
     
     # Initialize session state for active tab if not exists
     if 'active_tab' not in st.session_state:
