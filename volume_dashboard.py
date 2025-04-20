@@ -603,10 +603,10 @@ def main():
     # Add filters
     st.sidebar.header("Filters")
     min_market_cap = st.sidebar.number_input("Minimum Market Cap ($M)", 
-                                            min_value=100, 
+                                            min_value=10, 
                                             max_value=10000, 
                                             value=300, 
-                                            step=50)
+                                            step=10)
     min_volume = st.sidebar.number_input("Minimum Daily Volume ($M)", 
                                         min_value=1, 
                                         max_value=100, 
