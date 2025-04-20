@@ -43,6 +43,110 @@ RETRY_DELAY = 1  # seconds
 TIMEOUT = aiohttp.ClientTimeout(total=30)  # 30 seconds timeout
 ZSCORE_THRESHOLD = 2.0  # Z-score threshold for alerts
 
+# Define all sectors and their constituents
+SECTORS = {
+    "Layer 1": {
+        "solana": "SOL",
+        "binancecoin": "BNB",
+        "ethereum": "ETH",
+        "tron": "TRX",
+        "cardano": "ADA",
+        "avalanche-2": "AVAX",
+        "the-open-network": "TON",
+        "hedera-hashgraph": "HBAR",
+        "sui": "SUI"
+    },
+    "Layer 2": {
+        "mantle": "MNT",
+        "matic-network": "MATIC",
+        "arbitrum": "ARB",
+        "optimism": "OP",
+        "blockstack": "STX",
+        "starknet": "STRK",
+        "zksync": "ZK",
+        "celo": "CELO",
+        "metis-token": "METIS"
+    },
+    "Meme": {
+        "shiba-inu": "SHIB",
+        "dogecoin": "DOGE",
+        "pepe": "PEPE",
+        "trump-coin": "TRUMP",
+        "bonk": "BONK",
+        "fartcoin": "FARTCOIN",
+        "floki": "FLOKI",
+        "dogwifhat": "WIF",
+        "spx6900": "SPX"
+    },
+    "DeFi": {
+        "chainlink": "LINK",
+        "uniswap": "UNI",
+        "ondo-finance": "ONDO",
+        "aave": "AAVE",
+        "maker": "MKR",
+        "jupiter": "JUP",
+        "ethena": "ENA",
+        "curve-dao-token": "CRV",
+        "lido-dao": "LDO",
+        "raydium": "RAY",
+        "pendle": "PENDLE"
+    },
+    "AI": {
+        "bittensor": "TAO",
+        "render-token": "RENDER",
+        "fetch-ai": "FET",
+        "grass": "GRASS",
+        "virtual-protocol": "VIRTUAL",
+        "akash-network": "AKT",
+        "io": "IO",
+        "the-graph": "GRT"
+    },
+    "DePIN": {
+        "bittensor": "TAO",
+        "render-token": "RENDER",
+        "filecoin": "FIL",
+        "bittorrent": "BTT",
+        "livepeer": "LPT",
+        "iotex": "IOTX",
+        "aethir": "ATH"
+    },
+    "Gaming": {
+        "immutable-x": "IMX",
+        "gala": "GALA",
+        "axie-infinity": "AXS",
+        "beam": "BEAM",
+        "ronin": "RON",
+        "stepn": "GMT",
+        "yield-guild-games": "YGG",
+        "magic": "MAGIC"
+    },
+    "USA": {
+        "solana": "SOL",
+        "ripple": "XRP",
+        "dogecoin": "DOGE",
+        "cardano": "ADA",
+        "chainlink": "LINK",
+        "avalanche-2": "AVAX",
+        "stellar": "XLM",
+        "hedera-hashgraph": "HBAR",
+        "sui": "SUI",
+        "litecoin": "LTC",
+        "uniswap": "UNI"
+    },
+    "High FDV": {
+        "pi-network": "PI",
+        "worldcoin": "WLD",
+        "trump-coin": "TRUMP",
+        "movement": "MOVE",
+        "internet-computer": "ICP",
+        "grass": "GRASS",
+        "jupiter": "JUP",
+        "ondo-finance": "ONDO",
+        "sui": "SUI",
+        "filecoin": "FIL"
+    }
+}
+
 def send_telegram_alert(symbol, zscore, current_volume, market_cap, volume_change):
     """Send a Telegram alert for significant volume spikes"""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -281,6 +385,156 @@ async def run_analysis():
         st.error(f"Error running analysis: {str(e)}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
+async def get_sector_stats(session, sector_name, tokens):
+    """Calculate statistics for a sector"""
+    daily_volumes = {}
+    
+    # Process tokens in chunks to avoid rate limiting
+    token_ids = list(tokens.keys())
+    for i in range(0, len(token_ids), 5):  # Process 5 tokens at a time
+        chunk = token_ids[i:i + 5]
+        tasks = []
+        for token_id in chunk:
+            url = f"https://pro-api.coingecko.com/api/v3/coins/{token_id}/market_chart"
+            params = {"vs_currency": "usd", "days": "365"}
+            tasks.append(make_request(session, url, params))
+        
+        chunk_results = await asyncio.gather(*tasks)
+        
+        for token_id, data in zip(chunk, chunk_results):
+            if not data or "total_volumes" not in data:
+                continue
+                
+            volumes = data.get("total_volumes", [])
+            if len(volumes) < 2:
+                continue
+                
+            # Convert to daily volumes
+            for timestamp, volume in volumes:
+                date = datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d')
+                daily_volumes[date] = daily_volumes.get(date, 0) + float(volume)
+        
+        await asyncio.sleep(RATE_LIMIT_DELAY)
+    
+    if not daily_volumes:
+        return None, None
+        
+    # Convert to sorted list of daily volumes
+    sorted_dates = sorted(daily_volumes.keys())
+    volumes = [daily_volumes[date] for date in sorted_dates]
+    
+    # Calculate statistics
+    current_volume = volumes[-1]
+    previous_volume = volumes[-2]
+    mu = mean(volumes)
+    sigma = stdev(volumes)
+    z = (current_volume - mu) / sigma if sigma != 0 else 0
+    pctl = percentileofscore(volumes, current_volume)
+    dod_change = (current_volume - previous_volume) / previous_volume * 100 if previous_volume != 0 else 0
+    
+    # Calculate 7-day and 30-day moving averages
+    ma7 = mean(volumes[-7:]) if len(volumes) >= 7 else None
+    ma30 = mean(volumes[-30:]) if len(volumes) >= 30 else None
+    
+    # Create stats dictionary
+    stats = {
+        "date": sorted_dates[-1],
+        "current_volume": current_volume,
+        "zscore_volume": z,
+        "percentile_volume": pctl,
+        "dod_change_pct": dod_change,
+        "ma7": ma7,
+        "ma30": ma30,
+        "avg_volume": mu,
+        "std_dev": sigma
+    }
+    
+    # Create history DataFrame
+    history = pd.DataFrame({
+        'date': sorted_dates,
+        'volume': volumes
+    })
+    
+    return stats, history
+
+async def get_token_stats(session, token_id, symbol):
+    """Get statistics for a single token"""
+    try:
+        url = f"https://pro-api.coingecko.com/api/v3/coins/{token_id}/market_chart"
+        params = {"vs_currency": "usd", "days": "365"}
+        data = await make_request(session, url, params)
+        
+        if not data or "total_volumes" not in data:
+            return None
+            
+        volumes = data.get("total_volumes", [])
+        if len(volumes) < 2:
+            return None
+            
+        # Convert to daily volumes
+        daily_volumes = {}
+        for timestamp, volume in volumes:
+            date = datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d')
+            daily_volumes[date] = daily_volumes.get(date, 0) + float(volume)
+            
+        # Calculate statistics
+        sorted_dates = sorted(daily_volumes.keys())
+        volumes_list = [daily_volumes[date] for date in sorted_dates]
+        
+        current_volume = volumes_list[-1]
+        mu = mean(volumes_list)
+        sigma = stdev(volumes_list)
+        z = (current_volume - mu) / sigma if sigma != 0 else 0
+        
+        return {
+            "symbol": symbol,
+            "current_volume": current_volume,
+            "avg_volume": mu,
+            "zscore": z
+        }
+    except Exception as e:
+        print(f"Error getting stats for {token_id}: {str(e)}")
+        return None
+
+async def get_sector_token_breakdown(session, sector_name, tokens):
+    """Get detailed breakdown of tokens in a sector"""
+    token_stats = []
+    tasks = []
+    
+    for token_id, symbol in tokens.items():
+        tasks.append(get_token_stats(session, token_id, symbol))
+    
+    results = await asyncio.gather(*tasks)
+    for result in results:
+        if result:
+            token_stats.append(result)
+    
+    return sorted(token_stats, key=lambda x: x['zscore'], reverse=True)
+
+async def run_sector_analysis(session):
+    """Run sector analysis and return results"""
+    all_stats = {}
+    all_history = {}
+    
+    # Process all sectors in parallel
+    tasks = []
+    for sector_name, tokens in SECTORS.items():
+        tasks.append(get_sector_stats(session, sector_name, tokens))
+    
+    results = await asyncio.gather(*tasks)
+    
+    # Collect results
+    for (sector_name, tokens), (stats, history) in zip(SECTORS.items(), results):
+        if stats is not None and history is not None and not history.empty:
+            all_stats[sector_name] = stats
+            all_history[sector_name] = history
+    
+    return all_stats, all_history
+
+async def get_sector_token_breakdown_with_session(session, sector, tokens):
+    """Get token breakdown for a sector with an existing session"""
+    return await get_sector_token_breakdown(session, sector, tokens)
+
 def main():
     st.set_page_config(page_title="Flow Analysis", layout="wide")
     st.title("Flow Analysis Dashboard")
@@ -300,6 +554,7 @@ def main():
     - **Liquidity Analysis**: Identify tokens with high trading volume relative to market cap
     - **Volume Acceleration**: Track emerging trends through volume momentum
     - **Volatility Analysis**: Realised volatility dashboard across altcoins
+    - **Sector Analysis**: Analyze volume trends across different crypto sectors
     """)
     
     # Add filters
@@ -330,7 +585,14 @@ def main():
     with st.spinner("Fetching and analyzing data..."):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        
+        # Run volume analysis
         zscore_df, liquidity_df, accel_df, vol_df = loop.run_until_complete(run_analysis())
+        
+        # Run sector analysis
+        with aiohttp.ClientSession(timeout=TIMEOUT) as session:
+            all_stats, all_history = loop.run_until_complete(run_sector_analysis(session))
+        
         loop.close()
     
     if len(zscore_df) == 0:
@@ -355,7 +617,7 @@ def main():
     vol_df = vol_df.sort_values(by="volatility_7d", ascending=False)
     
     # Create tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Volume Spikes", "Liquidity", "Acceleration", "Volatility"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Volume Spikes", "Liquidity", "Acceleration", "Volatility", "Sector Analysis"])
 
     # Volume Spikes Tab
     with tab1:
@@ -510,6 +772,71 @@ def main():
             }), use_container_width=True)
         else:
             st.warning("No tokens found matching the criteria.")
+
+    # Sector Analysis Tab
+    with tab5:
+        st.header("Sector Volume Analysis")
+        
+        st.markdown("""
+        This section analyzes trading volume across different crypto sectors. The Z-score measures how many standard deviations the current sector volume is from its historical average. A high Z-score indicates significantly higher than normal trading activity in that sector.
+        """)
+        
+        if all_stats:
+            # Create DataFrame for sector stats
+            sector_data = []
+            for sector, stats in all_stats.items():
+                sector_data.append({
+                    "Sector": sector,
+                    "24H Volume": format_currency(stats["current_volume"]),
+                    "Avg Volume": format_currency(stats["avg_volume"]),
+                    "Z-Score": f"{stats['zscore_volume']:.2f}",
+                    "24h Change": f"{stats['dod_change_pct']:.2f}%"
+                })
+            
+            sector_df = pd.DataFrame(sector_data)
+            sector_df = sector_df.sort_values(by="Z-Score", ascending=False)
+            
+            # Display sector stats table
+            st.dataframe(sector_df, use_container_width=True)
+            
+            # Create scatter plot for sectors
+            fig = px.scatter(sector_df,
+                           x="Sector",
+                           y="Z-Score",
+                           size="24H Volume",
+                           color="24h Change",
+                           color_continuous_scale=["red", "yellow", "green"],
+                           title="Sector Z-Scores (Size by Volume, Color by 24h Change)")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Show token breakdown for high z-score sectors
+            high_z_sectors = [s for s, stats in all_stats.items() if stats['zscore_volume'] > 2]
+            if high_z_sectors:
+                st.subheader("Token Breakdown for High Z-Score Sectors (Z > 2)")
+                
+                for sector in high_z_sectors:
+                    with st.expander(f"{sector} Sector Tokens"):
+                        # Get token breakdown for this sector
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        with aiohttp.ClientSession(timeout=TIMEOUT) as session:
+                            token_stats = loop.run_until_complete(get_sector_token_breakdown_with_session(session, sector, SECTORS[sector]))
+                        loop.close()
+                        
+                        # Create DataFrame for token stats
+                        token_data = []
+                        for token in token_stats:
+                            token_data.append({
+                                "Token": token["symbol"],
+                                "24H Volume": format_currency(token["current_volume"]),
+                                "Avg Volume": format_currency(token["avg_volume"]),
+                                "Z-Score": f"{token['zscore']:.2f}"
+                            })
+                        
+                        token_df = pd.DataFrame(token_data)
+                        st.dataframe(token_df, use_container_width=True)
+        else:
+            st.warning("No sector data available. Please try again later.")
     
     # Add timestamp
     st.sidebar.write(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
