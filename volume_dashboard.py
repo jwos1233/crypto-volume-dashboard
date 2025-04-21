@@ -851,7 +851,7 @@ def main():
         
         if len(vol_df) > 0:
             # Create a new DataFrame for the plot
-            plot_df = vol_df.head(20).copy()
+            plot_df = vol_df.copy()  # Remove .head(20) to show all tokens
             
             # Create scatter plot
             fig = px.scatter(plot_df,
@@ -873,11 +873,14 @@ def main():
             
             # Display table with formatted values
             display_cols = ["symbol", "volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d", "current_volume_formatted", "market_cap_formatted"]
-            st.dataframe(vol_df.head(20)[display_cols].rename(columns={
+            st.dataframe(vol_df[display_cols].rename(columns={  # Remove .head(20) to show all tokens
                 "volatility_7d" if st.session_state.volatility_timeframe == "7d" else "volatility_30d": f"{st.session_state.volatility_timeframe} Volatility %",
                 "current_volume_formatted": "Volume",
                 "market_cap_formatted": "Market Cap"
             }), use_container_width=True)
+            
+            # Add a count of total tokens shown
+            st.write(f"Total tokens shown: {len(vol_df)}")
         else:
             st.warning("No tokens found matching the criteria.")
 
