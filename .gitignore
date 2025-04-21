@@ -40,6 +40,10 @@ ENV/
 *.json
 *.xlsx
 *.xls
+*.db
+*.sqlite
+*.sqlite3
+sector_zscore.py
 
 # Logs
 *.log
