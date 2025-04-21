@@ -148,7 +148,14 @@ SECTORS = {
         "jupiter": "JUP",
         "ondo-finance": "ONDO",
         "sui": "SUI",
-        "filecoin": "FIL"
+        "filecoin": "FIL",
+        "zksync": "ZK",
+        "scroll": "SCR",
+        "layerzero": "LAYER",
+        "berachain": "BERA",
+        "kaito": "KAITO",
+        "layerzero-protocol": "ZRO",
+        "starknet": "STRK"
     },
     "Dino": {
         "ripple": "XRP",
@@ -197,6 +204,27 @@ SECTORS = {
         "tai": "TAI",
         "oraichain-token": "ORAI",
         "zerebro": "ZEREBRO"
+    },
+    "Pump Fun": {
+        "fartcoin": "FARTCOIN",
+        "would-you-rather": "WOULD",
+        "peanut": "PNUT",
+        "alchemy": "ALCH",
+        "achain": "ACT",
+        "goat-coin": "GOAT",
+        "banana": "BAN",
+        "fartboy": "FARTBOY",
+        "arc": "ARC",
+        "fwog": "FWOG",
+        "vine": "VINE",
+        "moodeng": "MOODENG",
+        "avalanche-2": "AVA",
+        "chillguy": "CHILLGUY",
+        "unfed": "UFD",
+        "sigma": "SIGMA",
+        "luce": "LUCE",
+        "jellyjelly": "JELLYJELLY",
+        "michi": "MICHI"
     }
 }
 
