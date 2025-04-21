@@ -1,6 +1,6 @@
 # Crypto Volume Analysis Dashboard
 
-A Streamlit dashboard that analysis flows in Crypto.
+A Streamlit dashboard for Crypto flow analysis.
 
 ## Features
 
