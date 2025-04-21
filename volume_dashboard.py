@@ -38,7 +38,7 @@ if not API_KEY:
 
 HEADERS = {"x-cg-pro-api-key": API_KEY}
 MIN_MARKET_CAP = 300_000_000  # $300M
-IGNORE_SYMBOLS = {"EETH","BUSD","MSOL","XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
+IGNORE_SYMBOLS = {"EETH","BTC.B","BUSD","MSOL","XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
 TIMEOUT = aiohttp.ClientTimeout(total=30)  # 30 seconds timeout
@@ -101,7 +101,9 @@ SECTORS = {
         "virtual-protocol": "VIRTUAL",
         "akash-network": "AKT",
         "io": "IO",
-        "the-graph": "GRT"
+        "the-graph": "GRT",
+        "near": "NEAR",
+        "internet-computer": "ICP"
     },
     "DePIN": {
         "bittensor": "TAO",
@@ -147,6 +149,26 @@ SECTORS = {
         "ondo-finance": "ONDO",
         "sui": "SUI",
         "filecoin": "FIL"
+    },
+    "Dino": {
+        "ripple": "XRP",
+        "cardano": "ADA",
+        "stellar": "XLM",
+        "litecoin": "LTC",
+        "ethereum-classic": "ETC",
+        "eos": "EOS",
+        "iota": "IOTA",
+        "tezos": "XTZ",
+        "zcash": "ZEC"
+    },
+    "RWA": {
+        "chainlink": "LINK",
+        "avalanche-2": "AVAX",
+        "hedera-hashgraph": "HBAR",
+        "red": "RED",
+        "ondo-finance": "ONDO",
+        "maker": "MKR",
+        "xdce-crowd-sale": "XDC"
     }
 }
 
