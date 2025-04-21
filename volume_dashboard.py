@@ -169,6 +169,34 @@ SECTORS = {
         "ondo-finance": "ONDO",
         "maker": "MKR",
         "xdce-crowd-sale": "XDC"
+    },
+    "BNB Ecosystem": {
+        "dexe": "DEXE",
+        "formation-fi": "FORM",
+        "pancakeswap-token": "CAKE",
+        "floki": "FLOKI",
+        "trust-wallet-token": "TWT",
+        "beam": "BEAM",
+        "axelar": "AXL",
+        "zkj": "ZKJ",
+        "cheems": "CHEEMS",
+        "safepal": "SFP"
+    },
+    "AI Agents": {
+        "virtual-protocol": "VIRTUAL",
+        "origintrail": "TRAC",
+        "ai16z": "AI16Z",
+        "fairum": "FAI",
+        "paal-ai": "PAAL",
+        "pha": "PHA",
+        "ai-xbt": "AIXBT",
+        "chaingpt": "CGPT",
+        "clanker": "CLANKER",
+        "arc": "ARC",
+        "griffin": "GRIFFAIN",
+        "tai": "TAI",
+        "oraichain-token": "ORAI",
+        "zerebro": "ZEREBRO"
     }
 }
 
