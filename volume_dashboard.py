@@ -16,6 +16,8 @@ import contextlib
 import requests
 import numpy as np
 import json
+import math
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Load environment variables
 load_dotenv()
@@ -679,6 +681,64 @@ async def run_all_analysis():
         
         return zscore_df, liquidity_df, accel_df, vol_df, all_stats, all_history
 
+def get_perpetual_symbols():
+    url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
+    response = requests.get(url).json()
+    return [
+        s["symbol"] for s in response["symbols"]
+        if s["contractType"] == "PERPETUAL" and s["quoteAsset"] == "USDT"
+    ]
+
+def get_mark_price(symbol):
+    url = "https://fapi.binance.com/fapi/v1/premiumIndex"
+    response = requests.get(url, params={"symbol": symbol})
+    return float(response.json()["markPrice"])
+
+def get_avg_funding_rate(symbol):
+    now = int(datetime.now().timestamp() * 1000)
+    one_week_ago = now - 7 * 24 * 60 * 60 * 1000
+    url = "https://fapi.binance.com/fapi/v1/fundingRate"
+    params = {"symbol": symbol, "startTime": one_week_ago, "endTime": now, "limit": 1000}
+    response = requests.get(url, params=params).json()
+    if not response:
+        return 0.0
+    return sum(float(x["fundingRate"]) for x in response) / len(response)
+
+def estimate_forward_pct(avg_8h_rate, days):
+    return math.exp(avg_8h_rate * 3 * days) - 1
+
+def process_symbol(symbol):
+    try:
+        avg_rate = get_avg_funding_rate(symbol)
+        pct_3m = estimate_forward_pct(avg_rate, 90)
+        pct_6m = estimate_forward_pct(avg_rate, 180)
+        pct_12m = estimate_forward_pct(avg_rate, 365)
+        return {
+            "Symbol": symbol,
+            "3M %": round(pct_3m * 100, 2),
+            "6M %": round(pct_6m * 100, 2),
+            "12M %": round(pct_12m * 100, 2),
+        }
+    except Exception as e:
+        st.warning(f"⚠️ {symbol} skipped: {str(e)}")
+        return None
+
+def generate_derivatives_table():
+    symbols = get_perpetual_symbols()
+    st.info(f"🔄 Calculating implied forward % for {len(symbols)} symbols...")
+
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(process_symbol, sym): sym for sym in symbols}
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                results.append(result)
+
+    df = pd.DataFrame(results)
+    df.sort_values("12M %", ascending=False, inplace=True)
+    return df
+
 def main():
     st.set_page_config(page_title="Flow Analysis", layout="wide")
     st.title("Flow Analysis Dashboard")
@@ -713,6 +773,7 @@ def main():
     - **Volume Acceleration**: Track emerging trends through volume momentum
     - **Volatility Analysis**: Realised volatility dashboard across altcoins
     - **Liquidity Analysis**: Identify tokens with high trading volume relative to market cap
+    - **Derivatives Analysis**: Track forward prices and funding rates
     """)
     
     # Add filters
@@ -768,7 +829,7 @@ def main():
     vol_df = vol_df.sort_values(by="volatility_7d", ascending=False)
     
     # Create tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Volume Spikes", "Sector Analysis", "Acceleration", "Volatility", "Liquidity"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Volume Spikes", "Sector Analysis", "Acceleration", "Volatility", "Liquidity", "Derivatives"])
 
     # Volume Spikes Tab
     with tab1:
@@ -994,6 +1055,25 @@ def main():
             }), use_container_width=True)
         else:
             st.warning("No tokens found matching the criteria.")
+
+    # Derivatives Tab
+    with tab6:
+        st.header("Derivatives Analysis")
+        
+        st.markdown("""
+        This section shows the implied forward prices based on perpetual funding rates. The percentages represent the expected price difference between spot and futures prices over different time horizons.
+        """)
+        
+        # Generate derivatives table
+        df = generate_derivatives_table()
+        
+        # Display top 10 tokens with highest 12M premium
+        st.subheader("Top 10 tokens with highest 12M premium")
+        st.dataframe(df.head(10), use_container_width=True)
+        
+        # Display bottom 10 tokens with most negative 12M implied forward
+        st.subheader("Bottom 10 tokens with most negative 12M implied forward")
+        st.dataframe(df.tail(10), use_container_width=True)
 
     # Add timestamp
     st.sidebar.write(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
