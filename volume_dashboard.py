@@ -844,10 +844,10 @@ def main():
             # Show token breakdown for all sectors
             st.subheader("Token Breakdown by Sector")
             
-            # Create a selectbox to choose which sector to view
+            # Create a selectbox to choose which sector to view, ordered by Z-score
             selected_sector = st.selectbox(
                 "Select a sector to view its token breakdown:",
-                options=list(SECTORS.keys()),
+                options=sector_df["Sector"].tolist(),  # Use the sorted list of sectors
                 index=0
             )
             
