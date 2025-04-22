@@ -773,7 +773,6 @@ def main():
     - **Volume Acceleration**: Track emerging trends through volume momentum
     - **Volatility Analysis**: Realised volatility dashboard across altcoins
     - **Liquidity Analysis**: Identify tokens with high trading volume relative to market cap
-    - **Derivatives Analysis**: Track forward prices and funding rates
     """)
     
     # Add filters
@@ -829,7 +828,7 @@ def main():
     vol_df = vol_df.sort_values(by="volatility_7d", ascending=False)
     
     # Create tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Volume Spikes", "Sector Analysis", "Acceleration", "Volatility", "Liquidity", "Derivatives"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Volume Spikes", "Sector Analysis", "Acceleration", "Volatility", "Liquidity"])
 
     # Volume Spikes Tab
     with tab1:
@@ -1055,25 +1054,6 @@ def main():
             }), use_container_width=True)
         else:
             st.warning("No tokens found matching the criteria.")
-
-    # Derivatives Tab
-    with tab6:
-        st.header("Derivatives Analysis")
-        
-        st.markdown("""
-        This section shows the implied forward prices based on perpetual funding rates. The percentages represent the expected price difference between spot and futures prices over different time horizons.
-        """)
-        
-        # Generate derivatives table
-        df = generate_derivatives_table()
-        
-        # Display top 10 tokens with highest 12M premium
-        st.subheader("Top 10 tokens with highest 12M premium")
-        st.dataframe(df.head(10), use_container_width=True)
-        
-        # Display bottom 10 tokens with most negative 12M implied forward
-        st.subheader("Bottom 10 tokens with most negative 12M implied forward")
-        st.dataframe(df.tail(10), use_container_width=True)
 
     # Add timestamp
     st.sidebar.write(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
