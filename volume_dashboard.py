@@ -814,7 +814,7 @@ def main():
         st.header("Sector Volume Analysis")
         
         st.markdown("""
-        This section examines trading volume across sectors. The Z-score indicates how many standard deviations the current sector volume deviates from its historical average. Sectors with a Z-score greater than 2 are highlighted and broken down into their individual constituents below.
+        This section examines trading volume across sectors. The Z-score indicates how many standard deviations the current sector volume deviates from its historical average.
         """)
         
         if all_stats:
@@ -841,41 +841,39 @@ def main():
             display_df.columns = ["Sector", "24H Volume", "Avg Volume", "Z-Score", "24h Change"]
             st.dataframe(display_df, use_container_width=True)
             
-            # Create scatter plot for sectors using raw values
-            fig = px.scatter(sector_df,
-                           x="Sector",
-                           y="Z-Score",
-                           size="24H Volume",
-                           color="24h Change",
-                           color_continuous_scale=["red", "yellow", "green"],
-                           title="Sector Z-Scores (Size by Volume, Color by 24h Change)")
-            st.plotly_chart(fig, use_container_width=True)
+            # Show token breakdown for all sectors
+            st.subheader("Token Breakdown by Sector")
             
-            # Show token breakdown for high z-score sectors
-            high_z_sectors = [s for s, stats in all_stats.items() if stats['zscore_volume'] > 2]
-            if high_z_sectors:
-                st.subheader("Token Breakdown for High Z-Score Sectors (Z > 2)")
+            # Create a selectbox to choose which sector to view
+            selected_sector = st.selectbox(
+                "Select a sector to view its token breakdown:",
+                options=list(SECTORS.keys()),
+                index=0
+            )
+            
+            # Get token breakdown for the selected sector
+            with st.spinner(f"Loading token data for {selected_sector}..."):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                token_stats = loop.run_until_complete(get_token_breakdown_for_sector(selected_sector, SECTORS[selected_sector]))
+                loop.close()
                 
-                for sector in high_z_sectors:
-                    with st.expander(f"{sector} Sector Tokens"):
-                        # Get token breakdown for this sector
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        token_stats = loop.run_until_complete(get_token_breakdown_for_sector(sector, SECTORS[sector]))
-                        loop.close()
-                        
-                        # Create DataFrame for token stats
-                        token_data = []
-                        for token in token_stats:
-                            token_data.append({
-                                "Token": token["symbol"],
-                                "24H Volume": format_currency(token["current_volume"]),
-                                "Avg Volume": format_currency(token["avg_volume"]),
-                                "Z-Score": f"{token['zscore']:.2f}"
-                            })
-                        
-                        token_df = pd.DataFrame(token_data)
-                        st.dataframe(token_df, use_container_width=True)
+                # Create DataFrame for token stats
+                token_data = []
+                for token in token_stats:
+                    token_data.append({
+                        "Token": token["symbol"],
+                        "24H Volume": format_currency(token["current_volume"]),
+                        "Avg Volume": format_currency(token["avg_volume"]),
+                        "Z-Score": f"{token['zscore']:.2f}"
+                    })
+                
+                token_df = pd.DataFrame(token_data)
+                st.dataframe(token_df, use_container_width=True)
+                
+                # Add a small note about high Z-score sectors
+                if all_stats[selected_sector]['zscore_volume'] > 2:
+                    st.info(f"Note: {selected_sector} sector is currently showing high volume activity (Z-score > 2)")
         else:
             st.warning("No sector data available. Please try again later.")
 
