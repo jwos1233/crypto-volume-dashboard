@@ -1,6 +1,6 @@
 # Crypto Volume Analysis Dashboard
 
-A Streamlit dashboard that analyzes cryptocurrency volume patterns using data from CoinGecko.
+A Streamlit dashboard for Crypto flow analysis.
 
 ## Features
 
