@@ -36,7 +36,7 @@ if not API_KEY:
 
 HEADERS = {"x-cg-pro-api-key": API_KEY}
 MIN_MARKET_CAP = 300_000_000  # $300M
-IGNORE_SYMBOLS = {"EETH","BUSD","MSOL","XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
+IGNORE_SYMBOLS = {"SUSDS","USR","EETH","BUSD","MSOL","XSOLVBTC","USDT", "FDUSD", "USDC", "WBTC", "WETH", "USDD", "LBTC", "TBTC", "USDT0", "SOLVBTC", "CLBTC"}
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
 TIMEOUT = aiohttp.ClientTimeout(total=30)  # 30 seconds timeout
